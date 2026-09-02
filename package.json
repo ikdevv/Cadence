@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "dev": "pnpm --filter cadence-web dev & pnpm --filter cadence-api start:dev",
     "dev:web": "pnpm --filter cadence-web dev",
     "dev:api": "pnpm --filter cadence-api start:dev",
     "build": "pnpm -r build",
