@@ -1,0 +1,12 @@
+{
+  "name": "cadence",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev:web": "pnpm --filter cadence-web dev",
+    "dev:api": "pnpm --filter cadence-api start:dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test"
+  }
+}
