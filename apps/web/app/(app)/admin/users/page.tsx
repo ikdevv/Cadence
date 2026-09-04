@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function AdminUsersPage() {
   return (
-    <div className="mx-auto max-w-4xl p-6 md:p-10">
+    <div className="mx-auto max-w-4xl">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Users</h1>
         <InviteUserDialog />
