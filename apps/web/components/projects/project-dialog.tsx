@@ -22,7 +22,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { apiClient, ApiError } from "@/lib/api-client"
-import { queryKeys } from "@/lib/query-keys"
 
 /** Create and edit share one dialog — the fields are identical. */
 export function ProjectDialog({

@@ -26,7 +26,7 @@ import { queryKeys } from "@/lib/query-keys"
 export default function NewReportPage() {
   const router = useRouter()
   const [projectId, setProjectId] = React.useState("")
-  const [weekStart, setWeekStart] = React.useState("")
+  const [pickedWeek, setPickedWeek] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
 
   const { data: projects } = useQuery({
@@ -40,6 +40,9 @@ export default function NewReportPage() {
     queryFn: () => apiClient.get<string[]>("/reports/weeks/available"),
   })
 
+  // Defaults to the most recent week without a report, without syncing state.
+  const weekStart = pickedWeek || weeks?.[0] || ""
+
   const create = useMutation({
     mutationFn: () =>
       apiClient.post<{ id: string }>("/reports", { projectId, weekStart }),
@@ -49,10 +52,6 @@ export default function NewReportPage() {
         err instanceof ApiError ? err.message : "Could not create the report.",
       ),
   })
-
-  React.useEffect(() => {
-    if (!weekStart && weeks?.length) setWeekStart(weeks[0]!)
-  }, [weeks, weekStart])
 
   return (
     <div className="mx-auto max-w-lg">
@@ -66,7 +65,7 @@ export default function NewReportPage() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="week">Week</Label>
-            <Select value={weekStart} onValueChange={setWeekStart}>
+            <Select value={weekStart} onValueChange={setPickedWeek}>
               <SelectTrigger id="week">
                 <SelectValue
                   placeholder={weeksLoading ? "Loading..." : "Pick a week"}
