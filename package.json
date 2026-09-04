@@ -3,10 +3,14 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "dev": "pnpm --filter cadence-web dev & pnpm --filter cadence-api start:dev",
     "dev:web": "pnpm --filter cadence-web dev",
     "dev:api": "pnpm --filter cadence-api start:dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "db:seed": "pnpm --filter cadence-api db:seed",
+    "db:reset": "pnpm --filter cadence-api db:reset",
+    "test:e2e": "pnpm --filter cadence-api test:e2e"
   }
 }

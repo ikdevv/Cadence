@@ -1,10 +1,43 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
+import { RolesGuard } from './common/guards/roles.guard.js';
+import { AnalyticsModule } from './modules/analytics/analytics.module.js';
+import { AuthModule } from './modules/auth/auth.module.js';
+import { EmailModule } from './modules/email/email.module.js';
+import { InvitationsModule } from './modules/invitations/invitations.module.js';
+import { ProjectsModule } from './modules/projects/projects.module.js';
+import { ReportsModule } from './modules/reports/reports.module.js';
+import { ReviewsModule } from './modules/reviews/reviews.module.js';
+import { UsersModule } from './modules/users/users.module.js';
+import { PrismaModule } from './prisma/prisma.module.js';
 
 @Module({
-  imports: [],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    // Nothing consumes report.submitted / report.reviewed in the current scope;
+    // the emitter is a seam for later notification work, and the activity feed
+    // reads ReviewAction directly.
+    EventEmitterModule.forRoot(),
+    PrismaModule,
+    UsersModule,
+    AuthModule,
+    EmailModule,
+    InvitationsModule,
+    ProjectsModule,
+    ReportsModule,
+    ReviewsModule,
+    AnalyticsModule,
+  ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+  ],
 })
 export class AppModule {}

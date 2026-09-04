@@ -1,0 +1,171 @@
+enum ReportStatus {
+  DRAFT
+  SUBMITTED
+  NEEDS_CORRECTION
+  APPROVED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TaskStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+}
+
+enum TaskType {
+  DEVELOPMENT
+  TESTING
+  MEETINGS
+  DOCUMENTATION
+  OTHER
+}
+
+enum ReviewActionType {
+  APPROVE
+  REQUEST_CHANGES
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String   @unique
+  color     String   @default("#2563EB")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reports Report[]
+}
+
+/// Container. Holds identity + current status, never content — content lives on
+/// ReportVersion so a correction cycle never overwrites what was reviewed.
+model Report {
+  id        String       @id @default(cuid())
+  userId    String
+  projectId String
+  /// Always the Monday of the ISO week; normalized on write by toWeekStart().
+  weekStart DateTime     @db.Date
+  status    ReportStatus @default(DRAFT)
+
+  /// Denormalized pointer to the version under review / approved / being edited.
+  /// Kept correct inside the same transaction as every status change so analytics
+  /// can join straight through it instead of running a correlated subquery.
+  currentVersionId String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id])
+  project        Project         @relation(fields: [projectId], references: [id])
+  versions       ReportVersion[] @relation("reportVersions")
+  currentVersion ReportVersion?  @relation("currentVersion", fields: [currentVersionId], references: [id])
+  reviews        ReviewAction[]
+
+  @@unique([userId, weekStart])
+  @@index([status, weekStart])
+  @@index([projectId, weekStart])
+}
+
+/// Immutable once submittedAt is set. The version with submittedAt = null is the
+/// only one content may be written to.
+model ReportVersion {
+  id            String    @id @default(cuid())
+  reportId      String
+  versionNumber Int
+  submittedAt   DateTime?
+  notes         String?   @db.Text
+  links         String?   @db.Text
+  nextWeekPlan  String?   @db.Text
+  createdAt     DateTime  @default(now())
+
+  report    Report  @relation("reportVersions", fields: [reportId], references: [id], onDelete: Cascade)
+  currentOf Report? @relation("currentVersion")
+
+  tasks        Task[]
+  blockers     Blocker[]
+  achievements Achievement[]
+  hours        HoursEntry[]
+  reviews      ReviewAction[]
+
+  @@unique([reportId, versionNumber])
+  @@index([reportId, submittedAt])
+}
+
+model Task {
+  id           String       @id @default(cuid())
+  versionId    String
+  name         String
+  priority     TaskPriority @default(MEDIUM)
+  status       TaskStatus   @default(NOT_STARTED)
+  plannedPct   Int          @default(0)
+  actualPct    Int          @default(0)
+  hoursPlanned Decimal      @default(0) @db.Decimal(5, 2)
+  hoursSpent   Decimal      @default(0) @db.Decimal(5, 2)
+  deliverable  String?
+  sortOrder    Int          @default(0)
+
+  version ReportVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([versionId])
+  @@index([status])
+}
+
+model Blocker {
+  id          String  @id @default(cuid())
+  versionId   String
+  description String  @db.Text
+  isKeyIssue  Boolean @default(false)
+  sortOrder   Int     @default(0)
+
+  version ReportVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([versionId])
+}
+
+model Achievement {
+  id             String  @id @default(cuid())
+  versionId      String
+  description    String  @db.Text
+  isKeyHighlight Boolean @default(false)
+  sortOrder      Int     @default(0)
+
+  version ReportVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([versionId])
+}
+
+model HoursEntry {
+  id        String   @id @default(cuid())
+  versionId String
+  taskType  TaskType
+  hours     Decimal  @db.Decimal(5, 2)
+
+  version ReportVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([versionId, taskType])
+  @@index([versionId])
+}
+
+/// Append-only review log. The latest row per report is the current comment, and
+/// versionId records which version the comment was actually made against.
+model ReviewAction {
+  id         String           @id @default(cuid())
+  reportId   String
+  versionId  String
+  reviewerId String
+  action     ReviewActionType
+  comment    String?          @db.Text
+  createdAt  DateTime         @default(now())
+
+  report   Report        @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  version  ReportVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  reviewer User          @relation("reviewer", fields: [reviewerId], references: [id])
+
+  @@index([reportId, createdAt])
+  @@index([reviewerId, createdAt])
+}
