@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ModeToggle } from "@/components/mode-toggle"
 import { apiClient } from "@/lib/api-client"
 import { navFor } from "@/lib/navigation"
 import { useAuthStore } from "@/lib/stores/auth-store"
@@ -49,6 +50,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               Weekly reports
             </p>
           </div>
+          <div className="md:hidden">
+            <ModeToggle />
+          </div>
         </div>
 
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-1 md:flex-col md:overflow-x-visible md:pb-0">
@@ -68,15 +72,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        <div className="hidden gap-2 border-t p-3 md:flex md:flex-col">
+        <div className="hidden flex-col gap-3 border-t p-3 md:flex">
           <div className="px-1">
             <p className="truncate text-sm font-medium">{user?.email}</p>
             <p className="text-muted-foreground text-xs">{user?.role}</p>
           </div>
-          <Button variant="outline" size="sm" onClick={logout}>
-            <LogOut className="size-3.5" />
-            Log out
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={logout}
+            >
+              <LogOut className="size-3.5" />
+              Log out
+            </Button>
+            <ModeToggle />
+          </div>
         </div>
       </aside>
 
