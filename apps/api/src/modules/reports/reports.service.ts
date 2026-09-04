@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { paginate, type Paginated } from '../../common/dto/pagination.dto.js';
+import { decimalToNumber } from '../../common/utils/decimal.js';
 import { shiftWeek, toWeekStart } from '../../common/utils/week.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -13,7 +14,6 @@ import type { CreateReportDto } from './dto/create-report.dto.js';
 import type { ListReportsDto } from './dto/list-reports.dto.js';
 import type { ReportContentDto } from './dto/report-content.dto.js';
 import {
-  decimalToNumber,
   ReportVersionsService,
   versionInclude,
 } from './report-versions.service.js';

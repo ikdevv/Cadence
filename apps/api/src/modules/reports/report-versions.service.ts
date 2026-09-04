@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client.js';
+import { decimalToNumber } from '../../common/utils/decimal.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
 /** Every read of report content pulls the same children in the same order. */
@@ -13,16 +14,6 @@ export const versionInclude = {
 type VersionWithChildren = Prisma.ReportVersionGetPayload<{
   include: typeof versionInclude;
 }>;
-
-/** Prisma returns Decimal instances; the API speaks plain JSON numbers. */
-export function decimalToNumber(value: unknown): number {
-  if (value === null || value === undefined) return 0;
-  if (typeof value === 'number') return value;
-  if (typeof value === 'object' && 'toNumber' in (value as object)) {
-    return (value as { toNumber: () => number }).toNumber();
-  }
-  return Number(value);
-}
 
 @Injectable()
 export class ReportVersionsService {

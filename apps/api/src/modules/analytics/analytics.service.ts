@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { decimalToNumber } from '../../common/utils/decimal.js';
 import { isWeekOver, shiftWeek, toWeekStart } from '../../common/utils/week.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import type { ReportStatus } from '../../generated/prisma/enums.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { decimalToNumber } from '../reports/report-versions.service.js';
 
 /** Default span of the trend and workload charts. */
 const DEFAULT_RANGE_WEEKS = 6;
