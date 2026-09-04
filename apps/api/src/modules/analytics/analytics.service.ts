@@ -76,9 +76,18 @@ export class AnalyticsService {
   async summary(week?: string) {
     const weekStart = toWeekStart(week ?? new Date());
 
-    const [activeMembers, submitted, needsCorrection, approved, openBlockers] =
-      await this.prisma.$transaction([
+    const [
+      activeMembers,
+      started,
+      submitted,
+      needsCorrection,
+      approved,
+      openBlockers,
+    ] = await this.prisma.$transaction([
         this.prisma.user.count({ where: { isActive: true, role: 'MEMBER' } }),
+        // Any report row at all, drafts included — the matrix shows a draft as
+        // DRAFT, not as "not yet started", so the two surfaces agree.
+        this.prisma.report.count({ where: { weekStart } }),
         this.prisma.report.count({
           where: {
             weekStart,
@@ -101,15 +110,16 @@ export class AnalyticsService {
         }),
       ]);
 
-    const notStarted = Math.max(activeMembers - submitted, 0);
+    // Not yet started: an active member with no report row for the week.
+    const notStarted = Math.max(activeMembers - started, 0);
 
     return {
       weekStart: dateOnly(weekStart),
       activeMembers,
       submitted,
       notStarted,
-      // "Late" only means anything once the week itself has finished.
-      late: isWeekOver(weekStart) ? notStarted : 0,
+      // Late: not submitted, and the week itself has already finished.
+      late: isWeekOver(weekStart) ? Math.max(activeMembers - submitted, 0) : 0,
       needsCorrection,
       approved,
       complianceRate: activeMembers === 0 ? 0 : submitted / activeMembers,
