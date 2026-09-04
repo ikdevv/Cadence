@@ -6,6 +6,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
+import { AnalyticsModule } from './modules/analytics/analytics.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { EmailModule } from './modules/email/email.module.js';
 import { InvitationsModule } from './modules/invitations/invitations.module.js';
@@ -30,6 +31,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     ProjectsModule,
     ReportsModule,
     ReviewsModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [
