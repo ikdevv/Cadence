@@ -11,6 +11,7 @@ import { EmailModule } from './modules/email/email.module.js';
 import { InvitationsModule } from './modules/invitations/invitations.module.js';
 import { ProjectsModule } from './modules/projects/projects.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
+import { ReviewsModule } from './modules/reviews/reviews.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
@@ -28,6 +29,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     InvitationsModule,
     ProjectsModule,
     ReportsModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [
