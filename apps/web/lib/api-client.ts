@@ -19,6 +19,8 @@ async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = useAuthStore.getState().refreshToken;
   if (!refreshToken) return null;
 
+  // One in-flight refresh for the whole app: a dashboard page load fires
+  // several queries at once and would otherwise trigger five refreshes.
   if (!refreshInFlight) {
     refreshInFlight = fetch(`${API_URL}/auth/refresh`, {
       method: "POST",
@@ -75,6 +77,20 @@ async function request<T>(
   return (await res.json()) as T;
 }
 
+/** Drops empty values so an unset filter never becomes `?status=undefined`. */
+export function toQueryString(
+  params: Record<string, string | number | undefined | null>,
+): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== "") {
+      search.set(key, String(value));
+    }
+  }
+  const query = search.toString();
+  return query ? `?${query}` : "";
+}
+
 export const apiClient = {
   get: <T>(path: string, init?: RequestInit) => request<T>(path, init),
   post: <T>(path: string, data?: unknown, init?: RequestInit) =>
@@ -83,4 +99,12 @@ export const apiClient = {
       method: "POST",
       body: data === undefined ? undefined : JSON.stringify(data),
     }),
+  patch: <T>(path: string, data?: unknown, init?: RequestInit) =>
+    request<T>(path, {
+      ...init,
+      method: "PATCH",
+      body: data === undefined ? undefined : JSON.stringify(data),
+    }),
+  delete: <T>(path: string, init?: RequestInit) =>
+    request<T>(path, { ...init, method: "DELETE" }),
 };
