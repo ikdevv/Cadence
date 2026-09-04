@@ -16,6 +16,8 @@ model User {
 
   refreshTokens   RefreshToken[]
   invitationsSent Invitation[]   @relation("InvitedBy")
+  reports         Report[]
+  reviewsGiven    ReviewAction[] @relation("reviewer")
 
   @@index([role, isActive])
 }
