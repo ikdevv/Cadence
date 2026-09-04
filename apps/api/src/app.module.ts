@@ -6,6 +6,8 @@ import { AppService } from './app.service.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { EmailModule } from './modules/email/email.module.js';
+import { InvitationsModule } from './modules/invitations/invitations.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
@@ -15,6 +17,8 @@ import { PrismaModule } from './prisma/prisma.module.js';
     PrismaModule,
     UsersModule,
     AuthModule,
+    EmailModule,
+    InvitationsModule,
   ],
   controllers: [AppController],
   providers: [

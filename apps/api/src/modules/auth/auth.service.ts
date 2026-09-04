@@ -1,9 +1,9 @@
-import { createHash } from 'node:crypto';
 import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
-import type { Role } from '../../generated/prisma/client.js';
+import { hashToken } from '../../common/utils/hash-token.js';
+import type { User } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { UsersService } from '../users/users.service.js';
 import type { LoginDto } from './dto/login.dto.js';
@@ -44,7 +44,7 @@ export class AuthService {
       name: dto.name,
     });
 
-    return this.issueTokens(user.id, user.email, user.role);
+    return this.issueSessionFor(user);
   }
 
   async login(dto: LoginDto) {
@@ -58,7 +58,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.issueTokens(user.id, user.email, user.role);
+    return this.issueSessionFor(user);
   }
 
   async refresh(refreshToken: string) {
@@ -71,7 +71,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const tokenHash = this.hashToken(refreshToken);
+    const tokenHash = hashToken(refreshToken);
     const stored = await this.prisma.refreshToken.findFirst({
       where: { tokenHash, revokedAt: null, expiresAt: { gt: new Date() } },
       include: { user: true },
@@ -86,24 +86,26 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
 
-    return this.issueTokens(stored.user.id, stored.user.email, stored.user.role);
+    return this.issueSessionFor(stored.user);
   }
 
   async logout(refreshToken: string) {
-    const tokenHash = this.hashToken(refreshToken);
+    const tokenHash = hashToken(refreshToken);
     await this.prisma.refreshToken.updateMany({
       where: { tokenHash, revokedAt: null },
       data: { revokedAt: new Date() },
     });
   }
 
-  private async issueTokens(userId: string, email: string, role: Role) {
+  /** Issues an access/refresh token pair for an already-authenticated user
+   *  (used by login/register/refresh, and by the invitation-accept flow). */
+  async issueSessionFor(user: Pick<User, 'id' | 'email' | 'role'>) {
     const accessTtl = this.configService.get<string>('ACCESS_TOKEN_TTL', '15m');
     const refreshTtl = this.configService.get<string>('REFRESH_TOKEN_TTL', '7d');
     const refreshTtlMs = this.parseTtlMs(refreshTtl);
 
     const accessToken = await this.jwtService.signAsync(
-      { sub: userId, email, role },
+      { sub: user.id, email: user.email, role: user.role },
       {
         secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
         expiresIn: Math.floor(this.parseTtlMs(accessTtl) / 1000),
@@ -111,7 +113,7 @@ export class AuthService {
     );
 
     const refreshToken = await this.jwtService.signAsync(
-      { sub: userId } satisfies RefreshPayload,
+      { sub: user.id } satisfies RefreshPayload,
       {
         secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
         expiresIn: Math.floor(refreshTtlMs / 1000),
@@ -120,8 +122,8 @@ export class AuthService {
 
     await this.prisma.refreshToken.create({
       data: {
-        userId,
-        tokenHash: this.hashToken(refreshToken),
+        userId: user.id,
+        tokenHash: hashToken(refreshToken),
         expiresAt: new Date(Date.now() + refreshTtlMs),
       },
     });
@@ -129,12 +131,8 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      user: { id: userId, email, role },
+      user: { id: user.id, email: user.email, role: user.role },
     };
-  }
-
-  private hashToken(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
   }
 
   private parseTtlMs(ttl: string): number {

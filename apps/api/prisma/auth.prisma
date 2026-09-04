@@ -14,7 +14,8 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  refreshTokens RefreshToken[]
+  refreshTokens   RefreshToken[]
+  invitationsSent Invitation[]   @relation("InvitedBy")
 
   @@index([role, isActive])
 }
