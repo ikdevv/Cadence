@@ -1,0 +1,26 @@
+/// Written by the app only as PENDING, ACCEPTED, or CANCELLED. EXPIRED is a
+/// derived read-time state (status = PENDING and expiresAt in the past) —
+/// same pattern as the dashboard's "not yet started" state.
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+model Invitation {
+  id          String           @id @default(cuid())
+  email       String
+  role        Role
+  tokenHash   String           @unique
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  invitedById String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  invitedBy User @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  @@index([email, status])
+}
