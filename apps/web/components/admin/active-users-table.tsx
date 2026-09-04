@@ -23,10 +23,12 @@ interface ActiveUser {
 }
 
 export function ActiveUsersTable() {
-  const { data, isLoading, isError } = useQuery({
+  const { data: page, isLoading, isError } = useQuery({
     queryKey: queryKeys.users.active(),
-    queryFn: () => apiClient.get<ActiveUser[]>("/users"),
+    queryFn: () =>
+      apiClient.get<{ data: ActiveUser[] }>("/users?pageSize=100"),
   })
+  const data = page?.data
 
   if (isLoading) {
     return <p className="text-muted-foreground text-sm">Loading users...</p>
