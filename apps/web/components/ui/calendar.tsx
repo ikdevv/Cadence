@@ -17,9 +17,9 @@ function Calendar({ className, classNames, ...props }: CalendarProps) {
       className={cn("w-fit", className)}
       classNames={{
         root: cn(defaults.root, "p-1"),
-        months: "flex flex-col gap-3",
+        months: "relative flex flex-col gap-3",
         month: "flex flex-col gap-3",
-        nav: "flex items-center justify-between gap-1",
+        nav: "absolute inset-x-0 top-0 flex items-center justify-between gap-1",
         button_previous: cn(
           buttonVariants({ variant: "ghost", size: "icon-sm" }),
           "text-muted-foreground",

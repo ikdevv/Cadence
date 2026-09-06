@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 import { formatWeekRange } from "@cadence/shared"
+import { ReportChatWidget } from "@/components/assistant/report-chat-widget"
 import { ActivityFeed } from "@/components/dashboard/activity-feed"
 import { FilterBar } from "@/components/dashboard/filter-bar"
 import { ReportListTable } from "@/components/dashboard/report-list-table"
@@ -61,6 +62,8 @@ function TeamDashboard() {
           <ActivityFeed />
         </div>
       </div>
+
+      <ReportChatWidget />
     </div>
   )
 }
