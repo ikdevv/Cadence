@@ -67,14 +67,9 @@ cp apps/web/.env.example apps/web/.env.local
 | `REFRESH_TOKEN_TTL` | api | Default `7d` |
 | `CORS_ORIGIN` | api | The web origin, with credentials enabled |
 | `INVITATION_TTL_HOURS` | api | How long an invitation link stays valid (default 48) |
-<<<<<<< Updated upstream
-=======
 | `SMTP_HOST` / `SMTP_PORT` | api | Defaults to Mailpit (`localhost:1025`) |
 | `SMTP_FROM` | api | From header for outgoing mail |
 | `SMTP_SECURE` / `SMTP_USER` / `SMTP_PASS` | api | Only needed for a real SMTP provider — Mailpit takes neither TLS nor auth |
-| `HUGGINGFACE_API_KEY` | api | Server-side only — powers the AI Report Assistant. Needs the "Make calls to Inference Providers" token permission. Leave blank to disable it (returns a friendly 503) |
-| `HUGGINGFACE_MODEL` | api | Hugging Face model id, e.g. `Qwen/Qwen3-Next-80B-A3B-Instruct`. Must be served by a provider enabled on your account |
->>>>>>> Stashed changes
 | `NEXT_PUBLIC_API_URL` | web | Where the browser reaches the API |
 
 ### 3. Running the database and mail catcher
