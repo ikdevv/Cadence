@@ -67,13 +67,25 @@ cp apps/web/.env.example apps/web/.env.local
 | `REFRESH_TOKEN_TTL` | api | Default `7d` |
 | `CORS_ORIGIN` | api | The web origin, with credentials enabled |
 | `INVITATION_TTL_HOURS` | api | How long an invitation link stays valid (default 48) |
+<<<<<<< Updated upstream
+=======
+| `SMTP_HOST` / `SMTP_PORT` | api | Defaults to Mailpit (`localhost:1025`) |
+| `SMTP_FROM` | api | From header for outgoing mail |
+| `SMTP_SECURE` / `SMTP_USER` / `SMTP_PASS` | api | Only needed for a real SMTP provider — Mailpit takes neither TLS nor auth |
+| `HUGGINGFACE_API_KEY` | api | Server-side only — powers the AI Report Assistant. Needs the "Make calls to Inference Providers" token permission. Leave blank to disable it (returns a friendly 503) |
+| `HUGGINGFACE_MODEL` | api | Hugging Face model id, e.g. `Qwen/Qwen3-Next-80B-A3B-Instruct`. Must be served by a provider enabled on your account |
+>>>>>>> Stashed changes
 | `NEXT_PUBLIC_API_URL` | web | Where the browser reaches the API |
 
-### 3. Running the database
+### 3. Running the database and mail catcher
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres mailpit
 ```
+
+Mailpit catches every email the API sends locally — invitations included.
+View them at [http://localhost:8025](http://localhost:8025); nothing leaves
+the machine.
 
 ### 4. Running migrations and seeding
 
@@ -162,8 +174,7 @@ cadence/
 | `/team/sections` | MANAGER, ADMIN | One section across the whole team for a week |
 | `/analytics` | MANAGER, ADMIN | Four charts and the activity feed |
 | `/projects` | MANAGER, ADMIN | Project CRUD |
-| `/admin/users` | ADMIN | Users and invitations |
-| `/settings` | any | Name and password |
+| `/admin/users` | ADMIN | User management and invitations |
 
 ## API overview
 
@@ -246,9 +257,6 @@ correction cycle.
   table plus management UI without touching any evaluation criterion.
 - **Version diff view.** The brief asks for a list of versions viewable on
   demand, which is what the version drawer does.
-- **Email delivery.** The invitation flow is complete end to end, but the email
-  service logs the message instead of sending it; wiring a provider is a
-  configuration change, not a code change.
 - **Refresh token in an httpOnly cookie.** Tokens are held in the client and
   refreshed through `/auth/refresh` with rotation and reuse revocation. A cookie
   would be the choice for a production deployment on a shared parent domain.
