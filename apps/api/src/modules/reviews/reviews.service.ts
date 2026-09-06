@@ -19,8 +19,9 @@ export class ReviewsService {
     private readonly events: EventEmitter2,
   ) {}
 
-  async approve(reportId: string, reviewerId: string, comment?: string) {
-    const report = await this.loadReport(reportId);
+  async approve(publicId: string, reviewerId: string, comment?: string) {
+    const report = await this.loadReport(publicId);
+    const reportId = report.id;
     const status = nextStatus(report.status, 'APPROVE'); // throws unless SUBMITTED
 
     // No new version: the approved version stays frozen as currentVersionId.
@@ -51,8 +52,9 @@ export class ReviewsService {
    * editable copy so the member reopens a pre-filled form while the reviewed
    * version stays frozen and readable.
    */
-  async requestChanges(reportId: string, reviewerId: string, comment: string) {
-    const report = await this.loadReport(reportId);
+  async requestChanges(publicId: string, reviewerId: string, comment: string) {
+    const report = await this.loadReport(publicId);
+    const reportId = report.id;
     const status = nextStatus(report.status, 'REQUEST_CHANGES');
     const reviewedVersionId = report.currentVersionId!;
 
@@ -104,14 +106,27 @@ export class ReviewsService {
     }));
   }
 
-  private async loadReport(reportId: string) {
+  /** `publicId` is the URL-facing id; this resolves it to the internal id. */
+  private async loadReport(publicId: string) {
     const report = await this.prisma.report.findUnique({
-      where: { id: reportId },
+      where: { publicId },
       select: { id: true, status: true, currentVersionId: true },
     });
     if (!report || !report.currentVersionId) {
       throw new NotFoundException('Report not found');
     }
     return report;
+  }
+
+  /** For the standalone `GET /reviews/:reportId/history` route. */
+  async resolveIdByPublicId(publicId: string): Promise<string> {
+    const report = await this.prisma.report.findUnique({
+      where: { publicId },
+      select: { id: true },
+    });
+    if (!report) {
+      throw new NotFoundException('Report not found');
+    }
+    return report.id;
   }
 }

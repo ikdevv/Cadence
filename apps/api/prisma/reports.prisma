@@ -47,6 +47,9 @@ model Project {
 /// ReportVersion so a correction cycle never overwrites what was reviewed.
 model Report {
   id        String       @id @default(cuid())
+  /// Exposed in URLs and API responses instead of `id`. Generated at creation,
+  /// independent of `id` — never derived from it or a hash of it.
+  publicId  String       @unique
   userId    String
   projectId String
   /// Always the Monday of the ISO week; normalized on write by toWeekStart().

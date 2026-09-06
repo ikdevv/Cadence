@@ -9,6 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { hash } from 'bcryptjs';
 import { hashToken } from '../../common/utils/hash-token.js';
+import { generatePublicId } from '../../common/utils/public-id.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import type {
   Invitation,
@@ -154,6 +155,7 @@ export class InvitationsService {
           name,
           role: invitation.role,
           isActive: true,
+          publicId: generatePublicId('usr'),
         },
       });
 

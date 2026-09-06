@@ -5,6 +5,7 @@ import { hash } from 'bcryptjs';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module.js';
+import { generatePublicId } from '../src/common/utils/public-id.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 
 const PASSWORD = 'Demo@1234';
@@ -24,8 +25,13 @@ describe('RBAC (e2e)', () => {
   let memberBToken: string;
   let managerToken: string;
 
+  // Route params throughout this file are publicId — matching what the API
+  // actually accepts now. memberADraftInternalId is the one exception: it is
+  // only ever compared against a /team/reports list response, which still
+  // reports the internal id.
   let memberAReportId: string;
   let memberADraftId: string;
+  let memberADraftInternalId: string;
 
   const userIds: string[] = [];
   const projectIds: string[] = [];
@@ -38,6 +44,7 @@ describe('RBAC (e2e)', () => {
         name: `E2E ${role}`,
         role,
         passwordHash: await hash(PASSWORD, 12),
+        publicId: generatePublicId('usr'),
       },
     });
     userIds.push(user.id);
@@ -102,7 +109,7 @@ describe('RBAC (e2e)', () => {
       .post('/reports')
       .set('Authorization', `Bearer ${memberAToken}`)
       .send({ projectId: project.id, weekStart: '2026-03-02' });
-    memberAReportId = submitted.body.id;
+    memberAReportId = submitted.body.publicId;
 
     await request(http)
       .patch(`/reports/${memberAReportId}/content`)
@@ -116,7 +123,8 @@ describe('RBAC (e2e)', () => {
       .post('/reports')
       .set('Authorization', `Bearer ${memberAToken}`)
       .send({ projectId: project.id, weekStart: '2026-03-09' });
-    memberADraftId = draft.body.id;
+    memberADraftId = draft.body.publicId;
+    memberADraftInternalId = draft.body.id;
   });
 
   afterAll(async () => {
@@ -206,7 +214,7 @@ describe('RBAC (e2e)', () => {
     ).toBe(true);
     expect(
       res.body.data.some(
-        (report: { id: string }) => report.id === memberADraftId,
+        (report: { id: string }) => report.id === memberADraftInternalId,
       ),
     ).toBe(false);
   });

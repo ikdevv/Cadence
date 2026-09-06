@@ -43,27 +43,3 @@ export class AnalyticsController {
     return this.analytics.activity(limit ?? 20);
   }
 }
-
-/**
- * The two operational reads that belong to the dashboard rather than the charts
- * page. Same guard, same service — separate prefix so /team stays the manager's
- * route family.
- */
-@Roles('MANAGER', 'ADMIN')
-@Controller('team')
-export class TeamAnalyticsController {
-  constructor(private readonly analytics: AnalyticsService) {}
-
-  @Get('status-matrix')
-  statusMatrix(@Query('week') week?: string) {
-    return this.analytics.statusMatrix(week);
-  }
-
-  @Get('sections')
-  sections(
-    @Query('section') section?: 'blockers' | 'achievements' | 'tasks',
-    @Query('week') week?: string,
-  ) {
-    return this.analytics.sections(section ?? 'blockers', week);
-  }
-}

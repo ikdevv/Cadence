@@ -11,6 +11,8 @@
     "test": "pnpm -r test",
     "db:seed": "pnpm --filter cadence-api db:seed",
     "db:reset": "pnpm --filter cadence-api db:reset",
+    "db:migrate": "pnpm --filter cadence-api db:migrate",
+    "db:generate": "pnpm --filter cadence-api db:generate",
     "test:e2e": "pnpm --filter cadence-api test:e2e"
   }
 }

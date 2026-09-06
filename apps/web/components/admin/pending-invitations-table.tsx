@@ -18,7 +18,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { apiClient } from "@/lib/api-client"
+import {
+  cancelInvitation,
+  listInvitations,
+  resendInvitation,
+} from "@/lib/api/invitations"
 import { queryKeys } from "@/lib/query-keys"
 
 const STATUS_VARIANT: Record<Invitation["status"], "default" | "secondary" | "destructive" | "outline"> = {
@@ -32,18 +36,18 @@ export function PendingInvitationsTable() {
   const queryClient = useQueryClient()
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.invitations.list(),
-    queryFn: () => apiClient.get<Invitation[]>("/invitations"),
+    queryFn: () => listInvitations(),
   })
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["invitations"] })
 
   const resend = useMutation({
-    mutationFn: (id: string) => apiClient.post(`/invitations/${id}/resend`),
+    mutationFn: (id: string) => resendInvitation(id),
     onSuccess: invalidate,
   })
   const cancel = useMutation({
-    mutationFn: (id: string) => apiClient.post(`/invitations/${id}/cancel`),
+    mutationFn: (id: string) => cancelInvitation(id),
     onSuccess: invalidate,
   })
 

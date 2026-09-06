@@ -46,7 +46,7 @@ export class TeamReportsService {
         orderBy: [{ weekStart: 'desc' }, { updatedAt: 'desc' }],
         include: {
           project: { select: { id: true, name: true, code: true, color: true } },
-          user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, publicId: true, name: true, email: true } },
           currentVersion: { include: { tasks: true } },
           _count: { select: { versions: true } },
         },
@@ -62,8 +62,9 @@ export class TeamReportsService {
     };
   }
 
-  /** Everything the review page needs in one request. */
-  async findOne(reportId: string) {
+  /** Everything the review page needs in one request. `publicId` is the URL-facing id. */
+  async findOne(publicId: string) {
+    const reportId = await this.reports.resolveIdByPublicId(publicId);
     const [detail, reviewHistory] = await Promise.all([
       this.reports.findDetail(reportId),
       this.reviews.history(reportId),
@@ -72,7 +73,8 @@ export class TeamReportsService {
   }
 
   /** Past version content, loaded on demand by the version selector. */
-  findVersion(reportId: string, versionNumber: number) {
+  async findVersion(publicId: string, versionNumber: number) {
+    const reportId = await this.reports.resolveIdByPublicId(publicId);
     return this.versions.findVersionByNumber(reportId, versionNumber);
   }
 

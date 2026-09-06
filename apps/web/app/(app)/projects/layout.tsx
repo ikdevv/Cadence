@@ -1,12 +1,12 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { RequireRole } from "@/components/require-role"
+import * as React from "react";
+import { RequireRole } from "@/components/require-role";
 
 export default function ProjectsLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  return <RequireRole roles={["MANAGER", "ADMIN"]}>{children}</RequireRole>
+  return <RequireRole roles={["ADMIN"]}>{children}</RequireRole>;
 }

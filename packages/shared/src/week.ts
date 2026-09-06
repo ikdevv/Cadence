@@ -39,15 +39,36 @@ export function recentWeeks(count: number, from: Date | string = new Date()) {
   );
 }
 
-/** "4 Aug 2026" — the label used wherever a week is shown to a user. */
+const DATE_LABEL_FORMAT: Intl.DateTimeFormatOptions = {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+};
+
+/** "04 Aug 2026" for the exact date given — no week normalization. */
+function formatDateLabel(date: Date): string {
+  return date.toLocaleDateString("en-GB", DATE_LABEL_FORMAT);
+}
+
+/** "04 Aug 2026" — the label used wherever a single week-start is shown to a user. */
 export function formatWeek(date: Date | string): string {
+  return formatDateLabel(toWeekStart(date));
+}
+
+/** "04 Aug 2026 - 10 Aug 2026" for the Monday-to-Sunday week containing `date`. */
+export function formatWeekRange(date: Date | string): string {
   const start = toWeekStart(date);
-  return start.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  const end = shiftWeek(date, 1);
+  end.setUTCDate(end.getUTCDate() - 1); // Sunday, not next Monday
+  return formatDateRange(start, end);
+}
+
+/** "04 Aug 2026 - 10 Aug 2026" for an arbitrary start/end pair. */
+export function formatDateRange(start: Date | string, end: Date | string): string {
+  const startDate = typeof start === "string" ? new Date(start) : start;
+  const endDate = typeof end === "string" ? new Date(end) : end;
+  return `${formatDateLabel(startDate)} - ${formatDateLabel(endDate)}`;
 }
 
 /** True once the week containing `date` has finished — used for "late" reports. */

@@ -1,17 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { decimalToNumber } from '../../common/utils/decimal.js';
 import { isWeekOver, shiftWeek, toWeekStart } from '../../common/utils/week.js';
-import { Prisma } from '../../generated/prisma/client.js';
 import type { ReportStatus } from '../../generated/prisma/enums.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
 /** Default span of the trend and workload charts. */
 const DEFAULT_RANGE_WEEKS = 6;
-
-const num = (value: unknown): number => {
-  if (value === null || value === undefined) return 0;
-  return typeof value === 'number' ? value : Number(value.toString());
-};
 
 const asDate = (value: Date | string) =>
   value instanceof Date ? value : new Date(value);
@@ -28,51 +22,6 @@ const dateOnly = (value: Date | string) =>
 export class AnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * One row per active member for the week, including "not yet started" —
-   * which is not a stored status but the absence of a report row, so it comes
-   * from a left join out of the user table rather than from a phantom status
-   * or a nightly job creating empty reports.
-   */
-  async statusMatrix(week?: string) {
-    const weekStart = toWeekStart(week ?? new Date());
-
-    const rows = await this.prisma.$queryRaw<
-      {
-        userId: string;
-        name: string;
-        email: string;
-        status: string;
-        reportId: string | null;
-        submittedAt: Date | null;
-      }[]
-    >`
-      SELECT
-        u."id"                              AS "userId",
-        u."name"                            AS "name",
-        u."email"                           AS "email",
-        COALESCE(r."status"::text, 'NOT_STARTED') AS "status",
-        r."id"                              AS "reportId",
-        v."submittedAt"                     AS "submittedAt"
-      FROM "User" u
-      LEFT JOIN "Report" r
-        ON r."userId" = u."id" AND r."weekStart" = ${weekStart}::date
-      LEFT JOIN "ReportVersion" v
-        ON v."id" = r."currentVersionId"
-      WHERE u."isActive" = true AND u."role" = 'MEMBER'
-      ORDER BY u."name" ASC
-    `;
-
-    return rows.map((row) => ({
-      userId: row.userId,
-      name: row.name,
-      email: row.email,
-      status: row.status,
-      reportId: row.reportId,
-      submittedAt: row.submittedAt ? asDate(row.submittedAt).toISOString() : null,
-    }));
-  }
-
   async summary(week?: string) {
     const weekStart = toWeekStart(week ?? new Date());
 
@@ -84,31 +33,31 @@ export class AnalyticsService {
       approved,
       openBlockers,
     ] = await this.prisma.$transaction([
-        this.prisma.user.count({ where: { isActive: true, role: 'MEMBER' } }),
-        // Any report row at all, drafts included — the matrix shows a draft as
-        // DRAFT, not as "not yet started", so the two surfaces agree.
-        this.prisma.report.count({ where: { weekStart } }),
-        this.prisma.report.count({
-          where: {
-            weekStart,
-            status: { in: ['SUBMITTED', 'NEEDS_CORRECTION', 'APPROVED'] },
+      this.prisma.user.count({ where: { isActive: true, role: 'MEMBER' } }),
+      // Any report row at all, drafts included — the matrix shows a draft as
+      // DRAFT, not as "not yet started", so the two surfaces agree.
+      this.prisma.report.count({ where: { weekStart } }),
+      this.prisma.report.count({
+        where: {
+          weekStart,
+          status: { in: ['SUBMITTED', 'NEEDS_CORRECTION', 'APPROVED'] },
+        },
+      }),
+      this.prisma.report.count({
+        where: { weekStart, status: 'NEEDS_CORRECTION' },
+      }),
+      this.prisma.report.count({ where: { weekStart, status: 'APPROVED' } }),
+      // "Open blockers": blockers on the current version of any report for
+      // the week that is not yet approved. The brief leaves this undefined,
+      // so the definition is stated here and on the dashboard card.
+      this.prisma.blocker.count({
+        where: {
+          version: {
+            currentOf: { weekStart, status: { not: 'APPROVED' } },
           },
-        }),
-        this.prisma.report.count({
-          where: { weekStart, status: 'NEEDS_CORRECTION' },
-        }),
-        this.prisma.report.count({ where: { weekStart, status: 'APPROVED' } }),
-        // "Open blockers": blockers on the current version of any report for
-        // the week that is not yet approved. The brief leaves this undefined,
-        // so the definition is stated here and on the dashboard card.
-        this.prisma.blocker.count({
-          where: {
-            version: {
-              currentOf: { weekStart, status: { not: 'APPROVED' } },
-            },
-          },
-        }),
-      ]);
+        },
+      }),
+    ]);
 
     // Not yet started: an active member with no report row for the week.
     const notStarted = Math.max(activeMembers - started, 0);
@@ -130,31 +79,38 @@ export class AnalyticsService {
   /** Completed vs. total tasks per week, team-wide or for one member. */
   async trends(from?: string, to?: string, userId?: string) {
     const { start, end } = this.range(from, to);
-    const userFilter = userId
-      ? Prisma.sql`AND r."userId" = ${userId}`
-      : Prisma.empty;
 
-    const rows = await this.prisma.$queryRaw<
-      { weekStart: Date; completed: bigint; total: bigint }[]
-    >`
-      SELECT r."weekStart" AS "weekStart",
-             COUNT(*) FILTER (WHERE t."status" = 'COMPLETED') AS "completed",
-             COUNT(t."id") AS "total"
-      FROM "Report" r
-      JOIN "ReportVersion" v ON v."id" = r."currentVersionId"
-      LEFT JOIN "Task" t ON t."versionId" = v."id"
-      WHERE r."weekStart" BETWEEN ${start}::date AND ${end}::date
-        AND r."status" <> 'DRAFT'
-        ${userFilter}
-      GROUP BY r."weekStart"
-      ORDER BY r."weekStart" ASC
-    `;
+    const reports = await this.prisma.report.findMany({
+      where: {
+        weekStart: { gte: start, lte: end },
+        status: { not: 'DRAFT' },
+        ...(userId ? { userId } : {}),
+      },
+      select: {
+        weekStart: true,
+        currentVersion: { select: { tasks: { select: { status: true } } } },
+      },
+    });
 
-    return rows.map((row) => ({
-      weekStart: dateOnly(row.weekStart),
-      completedTasks: num(row.completed),
-      totalTasks: num(row.total),
-    }));
+    const byWeek = new Map<string, { completed: number; total: number }>();
+    for (const report of reports) {
+      const key = dateOnly(report.weekStart);
+      const bucket = byWeek.get(key) ?? { completed: 0, total: 0 };
+      const tasks = report.currentVersion?.tasks ?? [];
+      bucket.total += tasks.length;
+      bucket.completed += tasks.filter(
+        (task) => task.status === 'COMPLETED',
+      ).length;
+      byWeek.set(key, bucket);
+    }
+
+    return [...byWeek.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([weekStart, { completed, total }]) => ({
+        weekStart,
+        completedTasks: completed,
+        totalTasks: total,
+      }));
   }
 
   /** Report counts per member per status, for the stacked bar chart. */
@@ -192,40 +148,49 @@ export class AnalyticsService {
   async byProject(from?: string, to?: string) {
     const { start, end } = this.range(from, to);
 
-    const rows = await this.prisma.$queryRaw<
-      {
-        projectId: string;
-        name: string;
-        code: string;
-        color: string;
-        hoursSpent: string | null;
-        taskCount: bigint;
-      }[]
-    >`
-      SELECT p."id"   AS "projectId",
-             p."name" AS "name",
-             p."code" AS "code",
-             p."color" AS "color",
-             COALESCE(SUM(t."hoursSpent"), 0) AS "hoursSpent",
-             COUNT(t."id") AS "taskCount"
-      FROM "Project" p
-      JOIN "Report" r ON r."projectId" = p."id"
-      JOIN "ReportVersion" v ON v."id" = r."currentVersionId"
-      LEFT JOIN "Task" t ON t."versionId" = v."id"
-      WHERE r."weekStart" BETWEEN ${start}::date AND ${end}::date
-        AND r."status" <> 'DRAFT'
-      GROUP BY p."id", p."name", p."code", p."color"
-      ORDER BY "hoursSpent" DESC
-    `;
+    const reports = await this.prisma.report.findMany({
+      where: { weekStart: { gte: start, lte: end }, status: { not: 'DRAFT' } },
+      select: {
+        project: { select: { id: true, name: true, code: true, color: true } },
+        currentVersion: {
+          select: { tasks: { select: { hoursSpent: true } } },
+        },
+      },
+    });
 
-    return rows.map((row) => ({
-      projectId: row.projectId,
-      name: row.name,
-      code: row.code,
-      color: row.color,
-      hoursSpent: num(row.hoursSpent),
-      taskCount: num(row.taskCount),
-    }));
+    const byProject = new Map<
+      string,
+      {
+        project: { id: string; name: string; code: string; color: string };
+        hoursSpent: number;
+        taskCount: number;
+      }
+    >();
+    for (const report of reports) {
+      const bucket = byProject.get(report.project.id) ?? {
+        project: report.project,
+        hoursSpent: 0,
+        taskCount: 0,
+      };
+      const tasks = report.currentVersion?.tasks ?? [];
+      bucket.taskCount += tasks.length;
+      bucket.hoursSpent += tasks.reduce(
+        (sum, task) => sum + decimalToNumber(task.hoursSpent),
+        0,
+      );
+      byProject.set(report.project.id, bucket);
+    }
+
+    return [...byProject.values()]
+      .map(({ project, hoursSpent, taskCount }) => ({
+        projectId: project.id,
+        name: project.name,
+        code: project.code,
+        color: project.color,
+        hoursSpent,
+        taskCount,
+      }))
+      .sort((a, b) => b.hoursSpent - a.hoursSpent);
   }
 
   /** Meetings vs. development and the rest, team-wide. */
@@ -263,7 +228,7 @@ export class AnalyticsService {
           reviewer: { select: { name: true } },
           report: {
             select: {
-              id: true,
+              publicId: true,
               weekStart: true,
               user: { select: { name: true } },
             },
@@ -277,7 +242,7 @@ export class AnalyticsService {
         include: {
           report: {
             select: {
-              id: true,
+              publicId: true,
               weekStart: true,
               user: { select: { name: true } },
             },
@@ -293,7 +258,7 @@ export class AnalyticsService {
         action: review.action,
         actorName: review.reviewer.name,
         ownerName: review.report.user.name,
-        reportId: review.report.id,
+        reportPublicId: review.report.publicId,
         weekStart: dateOnly(review.report.weekStart),
         comment: review.comment,
         createdAt: review.createdAt.toISOString(),
@@ -304,7 +269,7 @@ export class AnalyticsService {
         action: null,
         actorName: version.report.user.name,
         ownerName: version.report.user.name,
-        reportId: version.report.id,
+        reportPublicId: version.report.publicId,
         weekStart: dateOnly(version.report.weekStart),
         comment: null,
         createdAt: version.submittedAt!.toISOString(),
@@ -314,60 +279,6 @@ export class AnalyticsService {
     return items
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, limit);
-  }
-
-  /**
-   * One section pulled from every member's current version for a week, side by
-   * side — all the blockers for a week, for example.
-   */
-  async sections(section: 'blockers' | 'achievements' | 'tasks', week?: string) {
-    const weekStart = toWeekStart(week ?? new Date());
-
-    const reports = await this.prisma.report.findMany({
-      where: { weekStart, status: { not: 'DRAFT' } },
-      orderBy: { user: { name: 'asc' } },
-      include: {
-        user: { select: { id: true, name: true } },
-        project: { select: { id: true, name: true, code: true, color: true } },
-        currentVersion: {
-          include: {
-            blockers: { orderBy: { sortOrder: 'asc' } },
-            achievements: { orderBy: { sortOrder: 'asc' } },
-            tasks: { orderBy: { sortOrder: 'asc' } },
-          },
-        },
-      },
-    });
-
-    return reports.map((report) => {
-      const version = report.currentVersion;
-      const items =
-        section === 'blockers'
-          ? (version?.blockers ?? []).map((blocker) => ({
-              id: blocker.id,
-              text: blocker.description,
-              flagged: blocker.isKeyIssue,
-            }))
-          : section === 'achievements'
-            ? (version?.achievements ?? []).map((achievement) => ({
-                id: achievement.id,
-                text: achievement.description,
-                flagged: achievement.isKeyHighlight,
-              }))
-            : (version?.tasks ?? []).map((task) => ({
-                id: task.id,
-                text: task.name,
-                flagged: task.status === 'BLOCKED',
-              }));
-
-      return {
-        reportId: report.id,
-        user: report.user,
-        project: report.project,
-        status: report.status,
-        items,
-      };
-    });
   }
 
   /** Defaults to the last six weeks, both bounds normalized to Mondays. */

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
-import { formatWeek, type Paginated, type ReportListItem } from "@cadence/shared"
+import { formatWeekRange } from "@cadence/shared"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -14,14 +14,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { apiClient, toQueryString } from "@/lib/api-client"
-import { useFilterParams } from "@/lib/hooks/use-filter-params"
+import { listTeamReports } from "@/lib/api/team"
+import { useDashboardFilters } from "@/lib/hooks/use-dashboard-filters"
 import { queryKeys } from "@/lib/query-keys"
 
 const PAGE_SIZE = 10
 
 export function ReportListTable() {
-  const { get, set } = useFilterParams()
+  const { get, set } = useDashboardFilters()
   const page = Number(get("page") ?? 1)
 
   const filters = {
@@ -35,10 +35,7 @@ export function ReportListTable() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.team.reports(filters),
-    queryFn: () =>
-      apiClient.get<Paginated<ReportListItem>>(
-        `/team/reports${toQueryString(filters)}`,
-      ),
+    queryFn: () => listTeamReports(filters),
   })
 
   if (isLoading) return <Skeleton className="h-64 w-full" />
@@ -78,7 +75,7 @@ export function ReportListTable() {
                 <TableCell className="font-medium">
                   {report.user ? (
                     <Link
-                      href={`/team/members/${report.user.id}`}
+                      href={`/team/members/${report.user.publicId}`}
                       className="hover:underline"
                     >
                       {report.user.name}
@@ -87,7 +84,7 @@ export function ReportListTable() {
                     "—"
                   )}
                 </TableCell>
-                <TableCell>{formatWeek(report.weekStart)}</TableCell>
+                <TableCell>{formatWeekRange(report.weekStart)}</TableCell>
                 <TableCell>
                   <span className="flex items-center gap-2">
                     <span
@@ -108,7 +105,7 @@ export function ReportListTable() {
                 </TableCell>
                 <TableCell className="text-right">
                   <Button asChild variant="outline" size="sm">
-                    <Link href={`/team/reports/${report.id}/review`}>
+                    <Link href={`/team/reports/${report.publicId}/review`}>
                       {report.status === "SUBMITTED" ? "Review" : "View"}
                     </Link>
                   </Button>

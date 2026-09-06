@@ -23,11 +23,9 @@ export interface NavItem {
 export const navItems: NavItem[] = [
   { href: "/reports", label: "My reports", roles: ["MEMBER"] },
   { href: "/team", label: "Team dashboard", roles: ["MANAGER", "ADMIN"] },
-  { href: "/team/sections", label: "By section", roles: ["MANAGER", "ADMIN"] },
   { href: "/analytics", label: "Analytics", roles: ["MANAGER", "ADMIN"] },
-  { href: "/projects", label: "Projects", roles: ["MANAGER", "ADMIN"] },
+  { href: "/projects", label: "Projects", roles: ["ADMIN"] },
   { href: "/admin/users", label: "Users", roles: ["ADMIN"] },
-  { href: "/settings", label: "Settings", roles: ["MEMBER", "MANAGER", "ADMIN"] },
 ];
 
 export function navFor(role: Role | undefined): NavItem[] {

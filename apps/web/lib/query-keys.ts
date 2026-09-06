@@ -31,9 +31,6 @@ export const queryKeys = {
     report: (id: string) => ["team-report", id] as const,
     version: (id: string, versionNumber: number) =>
       ["team-report", id, "versions", versionNumber] as const,
-    statusMatrix: (week?: string) => ["status-matrix", week ?? "current"] as const,
-    sections: (section: string, week?: string) =>
-      ["team-sections", section, week ?? "current"] as const,
   },
   reviews: {
     history: (reportId: string) => ["review-history", reportId] as const,

@@ -3,10 +3,8 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import {
-  ChangePasswordDto,
   CreateUserDto,
   ListUsersDto,
-  UpdateProfileDto,
   UpdateRoleDto,
   UpdateStatusDto,
 } from './dto/user.dto.js';
@@ -22,33 +20,17 @@ export class UsersController {
     return this.usersService.list(query);
   }
 
-  /** Self-service: name change, scoped to the JWT and never to a param. */
-  @Patch('me')
-  updateProfile(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: UpdateProfileDto,
-  ) {
-    return this.usersService.updateProfile(user.id, dto.name);
-  }
-
-  @Post('me/password')
-  changePassword(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: ChangePasswordDto,
-  ) {
-    return this.usersService.changePassword(user.id, dto);
-  }
-
   @Roles('ADMIN')
   @Post()
   create(@Body() dto: CreateUserDto) {
     return this.usersService.createByAdmin(dto);
   }
 
+  /** `:id` here is the public identifier — profile() resolves it to the internal id. */
   @Roles('MANAGER', 'ADMIN')
   @Get(':id')
-  profile(@Param('id') id: string) {
-    return this.usersService.profile(id);
+  profile(@Param('id') publicId: string) {
+    return this.usersService.profile(publicId);
   }
 
   @Roles('ADMIN')

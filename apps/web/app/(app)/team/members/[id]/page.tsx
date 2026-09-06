@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import {
-  formatWeek,
+  formatWeekRange,
   type MemberStats,
   type ProjectRef,
   type ReportStatus,
@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { apiClient } from "@/lib/api-client"
+import { getUser } from "@/lib/api/users"
 import { queryKeys } from "@/lib/query-keys"
 
 interface MemberProfile {
@@ -30,6 +30,7 @@ interface MemberProfile {
   stats: MemberStats
   recentReports: {
     id: string
+    publicId: string
     weekStart: string
     status: ReportStatus
     project: ProjectRef
@@ -43,7 +44,7 @@ export default function MemberProfilePage() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.users.profile(id),
-    queryFn: () => apiClient.get<MemberProfile>(`/users/${id}`),
+    queryFn: () => getUser<MemberProfile>(id),
   })
 
   if (isLoading) return <Skeleton className="h-96 w-full" />
@@ -108,7 +109,7 @@ export default function MemberProfilePage() {
                   <TableBody>
                     {data.recentReports.map((report) => (
                       <TableRow key={report.id}>
-                        <TableCell>{formatWeek(report.weekStart)}</TableCell>
+                        <TableCell>{formatWeekRange(report.weekStart)}</TableCell>
                         <TableCell>{report.project.code}</TableCell>
                         <TableCell>
                           <StatusBadge status={report.status} />
@@ -118,7 +119,7 @@ export default function MemberProfilePage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <Button asChild variant="outline" size="sm">
-                            <Link href={`/team/reports/${report.id}/review`}>
+                            <Link href={`/team/reports/${report.publicId}/review`}>
                               Open
                             </Link>
                           </Button>

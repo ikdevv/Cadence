@@ -4,12 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import {
-  formatWeek,
-  type ReportDetail,
-  type ReportVersionContent,
-  type ReviewEntry,
-} from "@cadence/shared"
+import { formatWeekRange, type ReportDetail, type ReviewEntry } from "@cadence/shared"
 import { ReportView } from "@/components/report/report-view"
 import { formatDateTime, VersionDrawer } from "@/components/report/version-drawer"
 import { StatusBadge } from "@/components/status-badge"
@@ -34,7 +29,9 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
-import { apiClient, ApiError } from "@/lib/api-client"
+import { ApiError } from "@/lib/api/client"
+import { approveReview, requestReviewChanges } from "@/lib/api/reviews"
+import { getTeamReport, getTeamReportVersion } from "@/lib/api/team"
 import { queryKeys } from "@/lib/query-keys"
 
 type TeamReportDetail = ReportDetail & { reviewHistory: ReviewEntry[] }
@@ -49,7 +46,7 @@ export default function ReviewPage() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.team.report(id),
-    queryFn: () => apiClient.get<TeamReportDetail>(`/team/reports/${id}`),
+    queryFn: () => getTeamReport<TeamReportDetail>(id),
   })
 
   const viewingPast =
@@ -58,10 +55,7 @@ export default function ReviewPage() {
 
   const pastVersion = useQuery({
     queryKey: queryKeys.team.version(id, selectedVersion ?? 0),
-    queryFn: () =>
-      apiClient.get<ReportVersionContent>(
-        `/team/reports/${id}/versions/${selectedVersion}`,
-      ),
+    queryFn: () => getTeamReportVersion(id, selectedVersion ?? 0),
     enabled: viewingPast,
   })
 
@@ -70,15 +64,11 @@ export default function ReviewPage() {
     queryClient.invalidateQueries({ queryKey: queryKeys.team.report(id) })
     queryClient.invalidateQueries({ queryKey: ["team-reports"] })
     queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all() })
-    queryClient.invalidateQueries({ queryKey: ["status-matrix"] })
     queryClient.invalidateQueries({ queryKey: queryKeys.reviews.history(id) })
   }
 
   const approve = useMutation({
-    mutationFn: () =>
-      apiClient.post(`/reviews/${id}/approve`, {
-        comment: comment.trim() || undefined,
-      }),
+    mutationFn: () => approveReview(id, comment.trim() || undefined),
     onSuccess: () => {
       setComment("")
       setError(null)
@@ -89,8 +79,7 @@ export default function ReviewPage() {
   })
 
   const requestChanges = useMutation({
-    mutationFn: () =>
-      apiClient.post(`/reviews/${id}/request-changes`, { comment: comment.trim() }),
+    mutationFn: () => requestReviewChanges(id, comment.trim()),
     onSuccess: () => {
       setComment("")
       setError(null)
@@ -119,15 +108,15 @@ export default function ReviewPage() {
             <StatusBadge status={data.status} withIcon />
           </div>
           <p className="text-muted-foreground text-sm">
-            Week of {formatWeek(data.weekStart)} · {data.project.name}
+            {formatWeekRange(data.weekStart)} · {data.project.name}
           </p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline">
-            <Link href={`/team/members/${data.user.id}`}>Member profile</Link>
+            <Link href={`/team/members/${data.user.publicId}`}>Member profile</Link>
           </Button>
           <VersionDrawer
-            reportId={data.id}
+            reportId={data.publicId}
             versions={data.versions}
             currentVersionNumber={data.currentVersion?.versionNumber}
             basePath="/team/reports"

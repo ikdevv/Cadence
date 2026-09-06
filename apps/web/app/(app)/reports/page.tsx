@@ -3,13 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
-import {
-  formatWeek,
-  REPORT_STATUSES,
-  type Paginated,
-  type Project,
-  type ReportListItem,
-} from "@cadence/shared"
+import { formatWeekRange, REPORT_STATUSES } from "@cadence/shared"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -28,7 +22,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { apiClient, toQueryString } from "@/lib/api-client"
+import { listProjects } from "@/lib/api/projects"
+import { listReports } from "@/lib/api/reports"
 import { queryKeys } from "@/lib/query-keys"
 import { statusConfig } from "@/lib/status-config"
 import { cn } from "@/lib/utils"
@@ -50,15 +45,12 @@ export default function ReportHistoryPage() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.reports.list(filters),
-    queryFn: () =>
-      apiClient.get<Paginated<ReportListItem>>(
-        `/reports${toQueryString(filters)}`,
-      ),
+    queryFn: () => listReports(filters),
   })
 
   const { data: projects } = useQuery({
     queryKey: queryKeys.projects.list(),
-    queryFn: () => apiClient.get<Project[]>("/projects"),
+    queryFn: () => listProjects(),
   })
 
   const totalPages = data ? Math.max(Math.ceil(data.total / PAGE_SIZE), 1) : 1
@@ -164,7 +156,7 @@ export default function ReportHistoryPage() {
                       )}
                     >
                       <TableCell className="font-medium">
-                        {formatWeek(report.weekStart)}
+                        {formatWeekRange(report.weekStart)}
                       </TableCell>
                       <TableCell>
                         <span className="flex items-center gap-2">
@@ -192,8 +184,8 @@ export default function ReportHistoryPage() {
                           <Link
                             href={
                               editable
-                                ? `/reports/${report.id}/edit`
-                                : `/reports/${report.id}`
+                                ? `/reports/${report.publicId}/edit`
+                                : `/reports/${report.publicId}`
                             }
                           >
                             {editable ? "Edit" : "View"}

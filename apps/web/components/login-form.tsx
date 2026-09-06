@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { LoginSchema, type LoginInput, type AuthSession } from "@cadence/shared"
+import { LoginSchema, type LoginInput } from "@cadence/shared"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/card"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { apiClient, ApiError } from "@/lib/api-client"
+import { login } from "@/lib/api/auth"
+import { ApiError } from "@/lib/api/client"
 import { useAuthStore } from "@/lib/stores/auth-store"
 
 export function LoginForm({
@@ -35,7 +36,7 @@ export function LoginForm({
   const onSubmit = handleSubmit(async (data) => {
     setFormError(null)
     try {
-      const session = await apiClient.post<AuthSession>("/auth/login", data)
+      const session = await login(data)
       setSession(session)
     } catch (error) {
       setFormError(

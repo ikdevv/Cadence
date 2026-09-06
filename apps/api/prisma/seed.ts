@@ -13,6 +13,7 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from 'bcryptjs';
 import { Pool } from 'pg';
+import { generatePublicId } from '../src/common/utils/public-id.js';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import type {
   TaskPriority,
@@ -23,7 +24,7 @@ import type {
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
-const DEMO_PASSWORD = 'Demo@1234';
+const DEMO_PASSWORD = 'Passsword123';
 
 function toWeekStart(date: Date): Date {
   const dt = new Date(
@@ -93,8 +94,15 @@ function thinVersion(theme: string): VersionSeed {
         hoursSpent: 5,
       },
     ],
-    blockers: [{ description: 'Some things are slower than expected.', isKeyIssue: true }],
-    achievements: [{ description: 'Made progress on the main task.', isKeyHighlight: true }],
+    blockers: [
+      {
+        description: 'Some things are slower than expected.',
+        isKeyIssue: true,
+      },
+    ],
+    achievements: [
+      { description: 'Made progress on the main task.', isKeyHighlight: true },
+    ],
     hours: [
       { taskType: 'DEVELOPMENT', hours: 11 },
       { taskType: 'MEETINGS', hours: 5 },
@@ -161,8 +169,7 @@ function detailedVersion(theme: string): VersionSeed {
     ],
     achievements: [
       {
-        description:
-          `${theme} shipped a week early and cut the median request time from 840ms to 310ms.`,
+        description: `${theme} shipped a week early and cut the median request time from 840ms to 310ms.`,
         isKeyHighlight: true,
       },
       { description: 'Wrote the runbook the on-call rotation was missing.' },
@@ -306,7 +313,13 @@ async function seedReport(options: {
   const { userId, projectId, managerId, week, theme, scenario, seed } = options;
 
   const report = await prisma.report.create({
-    data: { userId, projectId, weekStart: week, status: 'DRAFT' },
+    data: {
+      userId,
+      projectId,
+      weekStart: week,
+      status: 'DRAFT',
+      publicId: generatePublicId('rpt'),
+    },
   });
 
   const link = (versionId: string, status: Scenario | 'DRAFT') =>
@@ -378,11 +391,16 @@ async function seedReport(options: {
 
   // Every remaining scenario went through at least one correction cycle:
   // v1 is frozen, the comment points at v1, and v2 starts as a copy of it.
-  const v1 = await createVersion(report.id, 1, thinVersion(theme), submittedIn(week));
+  const v1 = await createVersion(
+    report.id,
+    1,
+    thinVersion(theme),
+    submittedIn(week),
+  );
   await review(
     v1.id,
     'REQUEST_CHANGES',
-    "Task percentages don't add up against the hours logged — please revise the row for this project and add detail on the deployment blocker. \"Some things are slower\" doesn't tell me what to escalate.",
+    'Task percentages don\'t add up against the hours logged — please revise the row for this project and add detail on the deployment blocker. "Some things are slower" doesn\'t tell me what to escalate.',
     submittedIn(week, 4, 18),
   );
 
@@ -444,6 +462,7 @@ async function main() {
       name: 'Admin User',
       role: 'ADMIN',
       passwordHash,
+      publicId: generatePublicId('usr'),
     },
   });
   const manager = await prisma.user.create({
@@ -452,6 +471,7 @@ async function main() {
       name: 'Nimal Perera',
       role: 'MANAGER',
       passwordHash,
+      publicId: generatePublicId('usr'),
     },
   });
 
@@ -466,7 +486,12 @@ async function main() {
   for (const member of memberSeeds) {
     members.push(
       await prisma.user.create({
-        data: { ...member, role: 'MEMBER', passwordHash },
+        data: {
+          ...member,
+          role: 'MEMBER',
+          passwordHash,
+          publicId: generatePublicId('usr'),
+        },
       }),
     );
   }
@@ -516,7 +541,12 @@ async function main() {
     { user: dilani!, project: clientB!, weeksBack: 5, scenario: 'APPROVED' },
     { user: ruwan!, project: tooling!, weeksBack: 5, scenario: 'APPROVED' },
     { user: amaya!, project: rnd!, weeksBack: 5, scenario: 'APPROVED' },
-    { user: tharindu!, project: marketing!, weeksBack: 5, scenario: 'APPROVED' },
+    {
+      user: tharindu!,
+      project: marketing!,
+      weeksBack: 5,
+      scenario: 'APPROVED',
+    },
     // week -4
     {
       user: kasun!,
@@ -527,7 +557,12 @@ async function main() {
     { user: dilani!, project: clientB!, weeksBack: 4, scenario: 'APPROVED' },
     { user: ruwan!, project: tooling!, weeksBack: 4, scenario: 'APPROVED' },
     { user: amaya!, project: clientA!, weeksBack: 4, scenario: 'APPROVED' },
-    { user: tharindu!, project: marketing!, weeksBack: 4, scenario: 'APPROVED' },
+    {
+      user: tharindu!,
+      project: marketing!,
+      weeksBack: 4,
+      scenario: 'APPROVED',
+    },
     // week -3
     { user: kasun!, project: clientA!, weeksBack: 3, scenario: 'APPROVED' },
     {
@@ -554,7 +589,12 @@ async function main() {
     },
     { user: ruwan!, project: tooling!, weeksBack: 2, scenario: 'SUBMITTED' },
     { user: amaya!, project: rnd!, weeksBack: 2, scenario: 'APPROVED' },
-    { user: tharindu!, project: marketing!, weeksBack: 2, scenario: 'APPROVED' },
+    {
+      user: tharindu!,
+      project: marketing!,
+      weeksBack: 2,
+      scenario: 'APPROVED',
+    },
     // week -1
     {
       user: kasun!,
@@ -570,7 +610,12 @@ async function main() {
       weeksBack: 1,
       scenario: 'NEEDS_CORRECTION',
     },
-    { user: tharindu!, project: marketing!, weeksBack: 1, scenario: 'SUBMITTED' },
+    {
+      user: tharindu!,
+      project: marketing!,
+      weeksBack: 1,
+      scenario: 'SUBMITTED',
+    },
     // current week — ruwan and tharindu deliberately have nothing
     { user: kasun!, project: clientA!, weeksBack: 0, scenario: 'DRAFT' },
     { user: dilani!, project: clientB!, weeksBack: 0, scenario: 'SUBMITTED' },
@@ -597,7 +642,9 @@ async function main() {
   });
 
   console.log('\nSeed complete.');
-  console.log(`  users:    ${members.length + 2} (${admin.email}, ${manager.email}, +5 members)`);
+  console.log(
+    `  users:    ${members.length + 2} (${admin.email}, ${manager.email}, +5 members)`,
+  );
   console.log(`  projects: ${projects.length}`);
   for (const count of counts) {
     console.log(`  ${count.status.padEnd(17)} ${count._count._all}`);

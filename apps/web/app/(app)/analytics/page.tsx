@@ -1,68 +1,60 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useQuery } from "@tanstack/react-query"
-import {
-  recentWeeks,
-  type ProjectWorkloadRow,
-  type StatusByMemberRow,
-  type TimeByTypeRow,
-  type TrendPoint,
-} from "@cadence/shared"
-import { ActivityFeed } from "@/components/dashboard/activity-feed"
-import { MagnitudeBarChart } from "@/components/charts/magnitude-bar-chart"
-import { StatusByMemberChart } from "@/components/charts/status-by-member-chart"
-import { TasksTrendChart } from "@/components/charts/tasks-trend-chart"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { recentWeeks } from "@cadence/shared";
+import { MagnitudeBarChart } from "@/components/charts/magnitude-bar-chart";
+import { StatusByMemberChart } from "@/components/charts/status-by-member-chart";
+import { TasksTrendChart } from "@/components/charts/tasks-trend-chart";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { apiClient, toQueryString } from "@/lib/api-client"
-import { queryKeys } from "@/lib/query-keys"
-import { taskTypeLabels } from "@/lib/status-config"
+} from "@/components/ui/select";
+import {
+  getByProject,
+  getStatusByMember,
+  getTimeByType,
+  getTrends,
+} from "@/lib/api/analytics";
+import { queryKeys } from "@/lib/query-keys";
+import { taskTypeLabels } from "@/lib/status-config";
 
 const RANGES = [
   { value: "6", label: "Last 6 weeks" },
   { value: "12", label: "Last 12 weeks" },
   { value: "26", label: "Last 26 weeks" },
-]
+];
 
 export default function AnalyticsPage() {
-  const [weeks, setWeeks] = React.useState("6")
+  const [weeks, setWeeks] = React.useState("6");
 
   const range = React.useMemo(() => {
-    const span = recentWeeks(Number(weeks))
+    const span = recentWeeks(Number(weeks));
     return {
       from: span[0]!.toISOString().slice(0, 10),
       to: span[span.length - 1]!.toISOString().slice(0, 10),
-    }
-  }, [weeks])
-
-  const query = toQueryString(range)
+    };
+  }, [weeks]);
 
   const trends = useQuery({
     queryKey: queryKeys.analytics.trends(range),
-    queryFn: () => apiClient.get<TrendPoint[]>(`/analytics/trends${query}`),
-  })
+    queryFn: () => getTrends(range),
+  });
   const byMember = useQuery({
     queryKey: queryKeys.analytics.statusByMember(range),
-    queryFn: () =>
-      apiClient.get<StatusByMemberRow[]>(`/analytics/status-by-member${query}`),
-  })
+    queryFn: () => getStatusByMember(range),
+  });
   const byProject = useQuery({
     queryKey: queryKeys.analytics.byProject(range),
-    queryFn: () =>
-      apiClient.get<ProjectWorkloadRow[]>(`/analytics/by-project${query}`),
-  })
+    queryFn: () => getByProject(range),
+  });
   const byType = useQuery({
     queryKey: queryKeys.analytics.timeByType(range),
-    queryFn: () =>
-      apiClient.get<TimeByTypeRow[]>(`/analytics/time-by-type${query}`),
-  })
+    queryFn: () => getTimeByType(range),
+  });
 
   return (
     <div className="space-y-6">
@@ -90,7 +82,10 @@ export default function AnalyticsPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <TasksTrendChart data={trends.data} isLoading={trends.isLoading} />
-        <StatusByMemberChart data={byMember.data} isLoading={byMember.isLoading} />
+        <StatusByMemberChart
+          data={byMember.data}
+          isLoading={byMember.isLoading}
+        />
         <MagnitudeBarChart
           title="Workload by project"
           description="Hours logged on the current version of each report."
@@ -104,7 +99,7 @@ export default function AnalyticsPage() {
         />
         <MagnitudeBarChart
           title="Time by task type"
-          description="Where the team's hours actually went — meetings against development."
+          description="Where the team's hours actually went."
           data={byType.data?.map((row) => ({
             label: taskTypeLabels[row.taskType] ?? row.taskType,
             value: row.hours,
@@ -114,15 +109,6 @@ export default function AnalyticsPage() {
           tableHead={["Task type", "Hours"]}
         />
       </div>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Recent activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ActivityFeed limit={20} />
-        </CardContent>
-      </Card>
     </div>
-  )
+  );
 }

@@ -2,17 +2,16 @@
 
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
-import { formatWeek, type ActivityItem } from "@cadence/shared"
+import { formatWeekRange, type ActivityItem } from "@cadence/shared"
 import { formatDateTime } from "@/components/report/version-drawer"
 import { Skeleton } from "@/components/ui/skeleton"
-import { apiClient } from "@/lib/api-client"
+import { getActivity } from "@/lib/api/analytics"
 import { queryKeys } from "@/lib/query-keys"
 
 export function ActivityFeed({ limit = 12 }: { limit?: number }) {
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.analytics.activity(limit),
-    queryFn: () =>
-      apiClient.get<ActivityItem[]>(`/analytics/activity?limit=${limit}`),
+    queryFn: () => getActivity(limit),
   })
 
   if (isLoading) return <Skeleton className="h-48 w-full" />
@@ -30,7 +29,7 @@ export function ActivityFeed({ limit = 12 }: { limit?: number }) {
       {data.map((item) => (
         <li key={item.id} className="py-2.5 text-sm">
           <Link
-            href={`/team/reports/${item.reportId}/review`}
+            href={`/team/reports/${item.reportPublicId}/review`}
             className="hover:underline"
           >
             {describe(item)}
@@ -45,7 +44,7 @@ export function ActivityFeed({ limit = 12 }: { limit?: number }) {
 }
 
 function describe(item: ActivityItem): string {
-  const week = `week of ${formatWeek(item.weekStart)}`
+  const week = formatWeekRange(item.weekStart)
   if (item.kind === "SUBMISSION") {
     return `${item.actorName} submitted their report for ${week}`
   }
