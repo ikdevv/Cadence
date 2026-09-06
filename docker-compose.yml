@@ -16,5 +16,20 @@ services:
       timeout: 5s
       retries: 10
 
+  # Catches every email the API sends in local dev — nothing leaves the
+  # machine. Inbox UI at http://localhost:8025; the API talks SMTP to it on
+  # 1025, no credentials needed.
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8025/readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   postgres_data:

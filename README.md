@@ -67,6 +67,8 @@ cp apps/web/.env.example apps/web/.env.local
 | `REFRESH_TOKEN_TTL` | api | Default `7d` |
 | `CORS_ORIGIN` | api | The web origin, with credentials enabled |
 | `INVITATION_TTL_HOURS` | api | How long an invitation link stays valid (default 48) |
+| `HUGGINGFACE_API_KEY` | api | Server-side only — powers the AI Report Assistant. Needs the "Make calls to Inference Providers" token permission. Leave blank to disable it (returns a friendly 503) |
+| `HUGGINGFACE_MODEL` | api | Hugging Face model id, e.g. `Qwen/Qwen3-Next-80B-A3B-Instruct`. Must be served by a provider enabled on your account |
 | `NEXT_PUBLIC_API_URL` | web | Where the browser reaches the API |
 
 ### 3. Running the database
@@ -100,7 +102,7 @@ Or both at once with `pnpm dev`.
 
 ### Demo accounts
 
-Every account uses the password `Demo@1234`.
+Every account uses the password `Passsword123`.
 
 | Email | Role | What they see |
 | --- | --- | --- |
@@ -182,6 +184,7 @@ cadence/
 | GET | `/team/reports`, `/team/reports/:id`, `/team/reports/:id/versions/:n`, `/team/status-matrix`, `/team/sections` | MANAGER, ADMIN |
 | POST/GET | `/reviews/:reportId/approve`, `/reviews/:reportId/request-changes`, `/reviews/:reportId/history` | MANAGER, ADMIN |
 | GET | `/analytics/summary`, `/trends`, `/status-by-member`, `/by-project`, `/time-by-type`, `/activity` | MANAGER, ADMIN |
+| POST | `/assistant/report-chat` | MANAGER, ADMIN |
 
 List endpoints return `{ data, page, pageSize, total }`; single resources return
 the object directly.
@@ -230,18 +233,19 @@ derived at read time. Neither needs a background job creating placeholder rows.
 across all versions would double-count every report that went through a
 correction cycle.
 
+**AI Report Assistant.** A manager-only chat widget on `/team` that answers
+questions about report data using an open-weight Qwen3 model through Hugging
+Face's Inference Providers API. The server fetches and minimizes authorized
+report data through the existing `TeamReportsService`/`ReportsService`/
+`AnalyticsService` — no new query path into the database — before it ever
+reaches the model; the model has no database access and cannot take actions.
+See [`docs/ai-assistant.md`](docs/ai-assistant.md) for the full architecture,
+prompt design, privacy, and data-minimization notes.
+
 ---
 
 ## What is not implemented, and why
 
-- **AI chat assistant.** Listed as optional in the brief. Left out rather than
-  half-built. The design it would follow: tool use over the existing guarded
-  service methods — four read-only tools (team reports, blockers, workload
-  summary, submission status), no database access for the model, a hop cap on
-  the tool loop, and manager-only access, so the model can never reach data the
-  caller could not already open in the UI. Not RAG: the reports are structured
-  relational data, and a `WHERE` clause answers these questions exactly where
-  semantic search would approximate.
 - **Member-to-project assignment.** Optional in the brief, and it adds a join
   table plus management UI without touching any evaluation criterion.
 - **Version diff view.** The brief asks for a list of versions viewable on

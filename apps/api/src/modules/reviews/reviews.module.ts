@@ -9,6 +9,6 @@ import { TeamReportsService } from './team-reports.service.js';
   imports: [ReportsModule],
   controllers: [ReviewsController, TeamController],
   providers: [ReviewsService, TeamReportsService],
-  exports: [ReviewsService],
+  exports: [ReviewsService, TeamReportsService],
 })
 export class ReviewsModule {}
