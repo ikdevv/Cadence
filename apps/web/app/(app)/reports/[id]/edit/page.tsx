@@ -4,6 +4,7 @@ import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { EDITABLE_STATUSES, formatWeekRange } from "@cadence/shared"
+import { DeleteReportButton } from "@/components/report/delete-report-button"
 import { ReportForm } from "@/components/report/report-form"
 import { ReviewCommentBanner } from "@/components/report/review-comment-banner"
 import { VersionDrawer } from "@/components/report/version-drawer"
@@ -55,13 +56,22 @@ export default function EditReportPage() {
             {data.versionCount}
           </p>
         </div>
-        {data.versionCount > 1 && (
-          <VersionDrawer
-            reportId={data.publicId}
-            versions={data.versions}
-            currentVersionNumber={data.currentVersion?.versionNumber}
-          />
-        )}
+        <div className="flex items-center gap-2">
+          {data.versionCount > 1 && (
+            <VersionDrawer
+              reportId={data.publicId}
+              versions={data.versions}
+              currentVersionNumber={data.currentVersion?.versionNumber}
+            />
+          )}
+          {data.status === "DRAFT" && (
+            <DeleteReportButton
+              reportId={data.publicId}
+              weekLabel={formatWeekRange(data.weekStart)}
+              onDeleted={() => router.push("/reports")}
+            />
+          )}
+        </div>
       </div>
 
       <ReviewCommentBanner review={data.latestReview} />

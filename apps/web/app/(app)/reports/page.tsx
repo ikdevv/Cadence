@@ -4,6 +4,8 @@ import * as React from "react"
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { formatWeekRange, REPORT_STATUSES } from "@cadence/shared"
+import { DeleteReportButton } from "@/components/report/delete-report-button"
+import { NewReportDialog } from "@/components/report/new-report-dialog"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -64,9 +66,7 @@ export default function ReportHistoryPage() {
             Every week you have reported on, newest first.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/reports/new">New report</Link>
-        </Button>
+        <NewReportDialog />
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -121,9 +121,7 @@ export default function ReportHistoryPage() {
           <p className="text-muted-foreground mb-4 text-sm">
             No reports match this view yet.
           </p>
-          <Button asChild>
-            <Link href="/reports/new">Create this week&apos;s report</Link>
-          </Button>
+          <NewReportDialog triggerLabel="Create this week's report" />
         </div>
       )}
 
@@ -180,17 +178,25 @@ export default function ReportHistoryPage() {
                         {report.versionCount}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button asChild variant="outline" size="sm">
-                          <Link
-                            href={
-                              editable
-                                ? `/reports/${report.publicId}/edit`
-                                : `/reports/${report.publicId}`
-                            }
-                          >
-                            {editable ? "Edit" : "View"}
-                          </Link>
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          {report.status === "DRAFT" && (
+                            <DeleteReportButton
+                              reportId={report.publicId}
+                              weekLabel={formatWeekRange(report.weekStart)}
+                            />
+                          )}
+                          <Button asChild variant="outline" size="sm">
+                            <Link
+                              href={
+                                editable
+                                  ? `/reports/${report.publicId}/edit`
+                                  : `/reports/${report.publicId}`
+                              }
+                            >
+                              {editable ? "Edit" : "View"}
+                            </Link>
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )

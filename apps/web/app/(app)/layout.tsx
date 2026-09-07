@@ -7,17 +7,12 @@ import { RequireRole } from "@/components/require-role"
 /** Everything behind a session lives here: signed out, you get sent to /login. */
 export default function AppLayout({
   children,
-  modal,
 }: {
   children: React.ReactNode
-  modal: React.ReactNode
 }) {
   return (
     <RequireRole>
-      <AppShell>
-        {children}
-        {modal}
-      </AppShell>
+      <AppShell>{children}</AppShell>
     </RequireRole>
   )
 }

@@ -19,8 +19,8 @@ import { listProjects } from "@/lib/api/projects";
 import { createReport, getAvailableWeeks } from "@/lib/api/reports";
 import { queryKeys } from "@/lib/query-keys";
 
-/** The week + project fields shared by the full `/reports/new` page and its modal interception. */
-export function NewReportForm() {
+/** The week + project fields for creating a report, rendered inside `NewReportDialog`. */
+export function NewReportForm({ onCreated }: { onCreated?: () => void }) {
   const router = useRouter();
   const [projectId, setProjectId] = React.useState("");
   const [pickedWeek, setPickedWeek] = React.useState("");
@@ -42,7 +42,10 @@ export function NewReportForm() {
 
   const create = useMutation({
     mutationFn: () => createReport({ projectId, weekStart }),
-    onSuccess: (report) => router.push(`/reports/${report.publicId}/edit`),
+    onSuccess: (report) => {
+      onCreated?.();
+      router.push(`/reports/${report.publicId}/edit`);
+    },
     onError: (err) =>
       setError(
         err instanceof ApiError ? err.message : "Could not create the report.",

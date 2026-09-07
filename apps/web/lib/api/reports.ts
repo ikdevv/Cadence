@@ -39,3 +39,7 @@ export function updateReportContent(id: string, data: unknown) {
 export function submitReport(id: string) {
   return apiClient.post<ReportDetail>(`/reports/${id}/submit`);
 }
+
+export function deleteReport(id: string) {
+  return apiClient.delete<{ id: string }>(`/reports/${id}`);
+}

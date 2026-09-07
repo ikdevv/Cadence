@@ -1,6 +1,7 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import * as React from "react"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -10,11 +11,17 @@ import {
 } from "@/components/ui/dialog"
 import { NewReportForm } from "@/components/report/new-report-form"
 
-export default function NewReportModal() {
-  const router = useRouter()
+/** Opens on button click and closes itself once the report is created. */
+export function NewReportDialog({
+  triggerLabel = "New report",
+}: {
+  triggerLabel?: string
+}) {
+  const [open, setOpen] = React.useState(false)
 
   return (
-    <Dialog open onOpenChange={(open) => !open && router.back()}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button onClick={() => setOpen(true)}>{triggerLabel}</Button>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>New weekly report</DialogTitle>
@@ -22,7 +29,7 @@ export default function NewReportModal() {
             Pick the week and the project. You can fill in the rest next.
           </DialogDescription>
         </DialogHeader>
-        <NewReportForm />
+        <NewReportForm onCreated={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
   )
