@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type { Project } from "@cadence/shared"
 import { ProjectDialog } from "@/components/projects/project-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -25,7 +24,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { apiClient } from "@/lib/api-client"
+import {
+  activateProject,
+  deactivateProject,
+  deleteProjectPermanently,
+  listProjects,
+} from "@/lib/api/projects"
 import { queryKeys } from "@/lib/query-keys"
 
 export default function ProjectsPage() {
@@ -33,14 +37,18 @@ export default function ProjectsPage() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.projects.list(true),
-    queryFn: () => apiClient.get<Project[]>("/projects?includeInactive=true"),
+    queryFn: () => listProjects(true),
   })
 
   const setActive = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      isActive
-        ? apiClient.patch(`/projects/${id}`, { isActive: true })
-        : apiClient.delete(`/projects/${id}`),
+      isActive ? activateProject(id) : deactivateProject(id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["projects"] }),
+  })
+
+  const deletePermanently = useMutation({
+    mutationFn: (id: string) => deleteProjectPermanently(id),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["projects"] }),
   })
@@ -159,6 +167,44 @@ export default function ProjectsPage() {
                           Reactivate
                         </Button>
                       )}
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="destructive" size="sm">
+                            Delete
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>
+                              Permanently delete {project.name}?
+                            </DialogTitle>
+                            <DialogDescription>
+                              All your data will be lost. This deletes the{" "}
+                              {project.reportCount ?? 0} report(s) filed
+                              against this project — every version, task,
+                              blocker, achievement and review comment in
+                              them — along with the project itself. This
+                              cannot be undone.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <DialogClose asChild>
+                              <Button variant="outline">Cancel</Button>
+                            </DialogClose>
+                            <DialogClose asChild>
+                              <Button
+                                variant="destructive"
+                                disabled={deletePermanently.isPending}
+                                onClick={() =>
+                                  deletePermanently.mutate(project.id)
+                                }
+                              >
+                                Delete permanently
+                              </Button>
+                            </DialogClose>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   </TableCell>
                 </TableRow>

@@ -69,7 +69,7 @@ describe('ReportsService', () => {
       await service.assertOwnedReport('rep-1', OWNER);
 
       expect(prisma.report.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: 'rep-1', userId: OWNER } }),
+        expect.objectContaining({ where: { publicId: 'rep-1', userId: OWNER } }),
       );
     });
 

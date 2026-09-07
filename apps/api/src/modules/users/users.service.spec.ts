@@ -1,6 +1,5 @@
-import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { hash } from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { UsersService } from './users.service.js';
 
@@ -69,19 +68,5 @@ describe('UsersService', () => {
     await service.updateStatus('user-2', true, ADMIN);
 
     expect(tx.refreshToken.updateMany).not.toHaveBeenCalled();
-  });
-
-  it('rejects a password change that fails the current-password check', async () => {
-    prisma.user.findUnique!.mockResolvedValue({
-      id: 'user-2',
-      passwordHash: await hash('the-real-one', 4),
-    });
-
-    await expect(
-      service.changePassword('user-2', {
-        currentPassword: 'a-guess',
-        newPassword: 'Demo@12345',
-      }),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });

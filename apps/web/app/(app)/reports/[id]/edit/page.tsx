@@ -3,18 +3,15 @@
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import {
-  EDITABLE_STATUSES,
-  formatWeek,
-  type Project,
-  type ReportDetail,
-} from "@cadence/shared"
+import { EDITABLE_STATUSES, formatWeekRange } from "@cadence/shared"
+import { DeleteReportButton } from "@/components/report/delete-report-button"
 import { ReportForm } from "@/components/report/report-form"
 import { ReviewCommentBanner } from "@/components/report/review-comment-banner"
 import { VersionDrawer } from "@/components/report/version-drawer"
 import { StatusBadge } from "@/components/status-badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { apiClient } from "@/lib/api-client"
+import { listProjects } from "@/lib/api/projects"
+import { getReport } from "@/lib/api/reports"
 import { queryKeys } from "@/lib/query-keys"
 
 export default function EditReportPage() {
@@ -23,12 +20,12 @@ export default function EditReportPage() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.reports.detail(id),
-    queryFn: () => apiClient.get<ReportDetail>(`/reports/${id}`),
+    queryFn: () => getReport(id),
   })
 
   const { data: projects } = useQuery({
     queryKey: queryKeys.projects.list(),
-    queryFn: () => apiClient.get<Project[]>("/projects"),
+    queryFn: () => listProjects(),
   })
 
   // A submitted or approved report has no editable version, so send the member
@@ -50,7 +47,7 @@ export default function EditReportPage() {
         <div>
           <div className="mb-1 flex items-center gap-2">
             <h1 className="text-2xl font-semibold">
-              Week of {formatWeek(data.weekStart)}
+              {formatWeekRange(data.weekStart)}
             </h1>
             <StatusBadge status={data.status} withIcon />
           </div>
@@ -59,13 +56,22 @@ export default function EditReportPage() {
             {data.versionCount}
           </p>
         </div>
-        {data.versionCount > 1 && (
-          <VersionDrawer
-            reportId={data.id}
-            versions={data.versions}
-            currentVersionNumber={data.currentVersion?.versionNumber}
-          />
-        )}
+        <div className="flex items-center gap-2">
+          {data.versionCount > 1 && (
+            <VersionDrawer
+              reportId={data.publicId}
+              versions={data.versions}
+              currentVersionNumber={data.currentVersion?.versionNumber}
+            />
+          )}
+          {data.status === "DRAFT" && (
+            <DeleteReportButton
+              reportId={data.publicId}
+              weekLabel={formatWeekRange(data.weekStart)}
+              onDeleted={() => router.push("/reports")}
+            />
+          )}
+        </div>
       </div>
 
       <ReviewCommentBanner review={data.latestReview} />

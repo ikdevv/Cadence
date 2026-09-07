@@ -1,15 +1,4 @@
-import type { ReportStatus } from "./reports";
 import type { ReviewActionType } from "./reports";
-
-/** A member's state for one week, including the derived NOT_STARTED. */
-export interface StatusMatrixRow {
-  userId: string;
-  name: string;
-  email: string;
-  status: ReportStatus | "NOT_STARTED";
-  reportId: string | null;
-  submittedAt: string | null;
-}
 
 export interface SummaryMetrics {
   weekStart: string;
@@ -61,7 +50,8 @@ export interface ActivityItem {
   action: ReviewActionType | null;
   actorName: string;
   ownerName: string;
-  reportId: string;
+  /** The URL-facing identifier — use this, not an internal id, when linking to the report. */
+  reportPublicId: string;
   weekStart: string;
   comment: string | null;
   createdAt: string;

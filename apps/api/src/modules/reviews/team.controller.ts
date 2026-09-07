@@ -13,16 +13,17 @@ export class TeamController {
     return this.teamReports.list(query);
   }
 
+  /** `:id` is the report's public identifier — resolved to the internal id downstream. */
   @Get('reports/:id')
-  findOne(@Param('id') id: string) {
-    return this.teamReports.findOne(id);
+  findOne(@Param('id') publicId: string) {
+    return this.teamReports.findOne(publicId);
   }
 
   @Get('reports/:id/versions/:versionNumber')
   findVersion(
-    @Param('id') id: string,
+    @Param('id') publicId: string,
     @Param('versionNumber', ParseIntPipe) versionNumber: number,
   ) {
-    return this.teamReports.findVersion(id, versionNumber);
+    return this.teamReports.findVersion(publicId, versionNumber);
   }
 }

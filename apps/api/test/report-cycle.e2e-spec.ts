@@ -5,6 +5,7 @@ import { hash } from 'bcryptjs';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module.js';
+import { generatePublicId } from '../src/common/utils/public-id.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 
 const PASSWORD = 'Demo@1234';
@@ -46,6 +47,7 @@ describe('Report correction cycle (e2e)', () => {
         name: `E2E ${role}`,
         role,
         passwordHash: await hash(PASSWORD, 12),
+        publicId: generatePublicId('usr'),
       },
     });
     userIds.push(user.id);
@@ -89,7 +91,7 @@ describe('Report correction cycle (e2e)', () => {
       // A Sunday: the report must land on the Monday of that week.
       .send({ projectId, weekStart: '2026-04-12' })
       .expect(201);
-    reportId = created.body.id;
+    reportId = created.body.publicId;
   });
 
   afterAll(async () => {

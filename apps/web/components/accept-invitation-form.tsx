@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { AcceptInvitationSchema, type AuthSession } from "@cadence/shared"
+import { AcceptInvitationSchema } from "@cadence/shared"
 import {
   Card,
   CardContent,
@@ -17,7 +17,8 @@ import {
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { apiClient, ApiError } from "@/lib/api-client"
+import { ApiError } from "@/lib/api/client"
+import { acceptInvitation } from "@/lib/api/invitations"
 import { useAuthStore } from "@/lib/stores/auth-store"
 
 const AcceptInvitationFormSchema = AcceptInvitationSchema.extend({
@@ -50,7 +51,7 @@ export function AcceptInvitationForm({
 
   const mutation = useMutation({
     mutationFn: (data: AcceptInvitationFormInput) =>
-      apiClient.post<AuthSession>("/invitations/accept", {
+      acceptInvitation({
         token: data.token,
         firstName: data.firstName,
         lastName: data.lastName,

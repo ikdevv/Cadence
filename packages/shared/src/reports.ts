@@ -115,6 +115,8 @@ export interface ProjectRef {
 
 export interface UserRef {
   id: string;
+  /** The URL-facing identifier — use this, not `id`, when linking to this user. */
+  publicId: string;
   name: string;
   email: string;
 }
@@ -150,6 +152,8 @@ export interface ReviewEntry {
 
 export interface ReportListItem {
   id: string;
+  /** The URL-facing identifier — use this, not `id`, when linking to this report. */
+  publicId: string;
   weekStart: string;
   status: ReportStatus;
   project: ProjectRef;
@@ -162,6 +166,8 @@ export interface ReportListItem {
 
 export interface ReportDetail {
   id: string;
+  /** The URL-facing identifier — use this, not `id`, when linking to this report. */
+  publicId: string;
   weekStart: string;
   status: ReportStatus;
   project: ProjectRef;

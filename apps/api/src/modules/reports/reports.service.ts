@@ -7,6 +7,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { paginate, type Paginated } from '../../common/dto/pagination.dto.js';
 import { decimalToNumber } from '../../common/utils/decimal.js';
+import { generatePublicId } from '../../common/utils/public-id.js';
 import { shiftWeek, toWeekStart } from '../../common/utils/week.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -27,6 +28,7 @@ const projectSelect = {
 
 const userSelect = {
   id: true,
+  publicId: true,
   name: true,
   email: true,
 } satisfies Prisma.UserSelect;
@@ -46,17 +48,30 @@ export class ReportsService {
    * The ownership rule, in one place: userId comes from the JWT and is filtered
    * in the where clause rather than fetched and compared afterwards. A miss is
    * a 404, not a 403 — a member should not be able to probe which report IDs
-   * exist.
+   * exist. `publicId` is the URL-facing identifier; this is also where it
+   * resolves to the internal id used for every query from here on.
    */
-  async assertOwnedReport(reportId: string, userId: string) {
+  async assertOwnedReport(publicId: string, userId: string) {
     const report = await this.prisma.report.findFirst({
-      where: { id: reportId, userId },
-      select: { id: true, status: true, currentVersionId: true },
+      where: { publicId, userId },
+      select: { id: true, publicId: true, status: true, currentVersionId: true },
     });
     if (!report) {
       throw new NotFoundException('Report not found');
     }
     return report;
+  }
+
+  /** Manager-facing routes have no per-owner scoping, just existence. */
+  async resolveIdByPublicId(publicId: string): Promise<string> {
+    const report = await this.prisma.report.findUnique({
+      where: { publicId },
+      select: { id: true },
+    });
+    if (!report) {
+      throw new NotFoundException('Report not found');
+    }
+    return report.id;
   }
 
   async listOwn(userId: string, query: ListReportsDto): Promise<Paginated<unknown>> {
@@ -102,7 +117,13 @@ export class ReportsService {
     // through the Prisma exception filter.
     return this.prisma.$transaction(async (tx) => {
       const report = await tx.report.create({
-        data: { userId, projectId: dto.projectId, weekStart, status: 'DRAFT' },
+        data: {
+          userId,
+          projectId: dto.projectId,
+          weekStart,
+          status: 'DRAFT',
+          publicId: generatePublicId('rpt'),
+        },
       });
 
       const version = await tx.reportVersion.create({
@@ -112,14 +133,14 @@ export class ReportsService {
       return tx.report.update({
         where: { id: report.id },
         data: { currentVersionId: version.id },
-        select: { id: true, weekStart: true, status: true },
+        select: { id: true, publicId: true, weekStart: true, status: true },
       });
     });
   }
 
   /** Own report with its current content and the comment explaining a rejection. */
-  async findOwn(reportId: string, userId: string) {
-    await this.assertOwnedReport(reportId, userId);
+  async findOwn(publicId: string, userId: string) {
+    const { id: reportId } = await this.assertOwnedReport(publicId, userId);
     return this.findDetail(reportId);
   }
 
@@ -144,6 +165,7 @@ export class ReportsService {
 
     return {
       id: report.id,
+      publicId: report.publicId,
       weekStart: report.weekStart.toISOString().slice(0, 10),
       status: report.status,
       project: report.project,
@@ -157,8 +179,8 @@ export class ReportsService {
     };
   }
 
-  async updateContent(reportId: string, userId: string, dto: ReportContentDto) {
-    await this.assertOwnedReport(reportId, userId);
+  async updateContent(publicId: string, userId: string, dto: ReportContentDto) {
+    const { id: reportId } = await this.assertOwnedReport(publicId, userId);
     const version = await this.versions.getEditableVersion(reportId);
     this.assertKeyFlags(dto);
 
@@ -217,8 +239,9 @@ export class ReportsService {
    * requestChanges does — or every cycle would leave an empty phantom version
    * behind.
    */
-  async submit(reportId: string, userId: string) {
-    const report = await this.assertOwnedReport(reportId, userId);
+  async submit(publicId: string, userId: string) {
+    const report = await this.assertOwnedReport(publicId, userId);
+    const reportId = report.id;
     if (report.status !== 'DRAFT' && report.status !== 'NEEDS_CORRECTION') {
       throw new ConflictException(
         `Cannot submit a report in status ${report.status}`,
@@ -248,8 +271,9 @@ export class ReportsService {
     return this.findDetail(reportId);
   }
 
-  async remove(reportId: string, userId: string) {
-    const report = await this.assertOwnedReport(reportId, userId);
+  async remove(publicId: string, userId: string) {
+    const report = await this.assertOwnedReport(publicId, userId);
+    const reportId = report.id;
     if (report.status !== 'DRAFT') {
       throw new ConflictException('Only a draft report can be deleted');
     }
@@ -261,13 +285,13 @@ export class ReportsService {
     return { id: reportId };
   }
 
-  async listVersions(reportId: string, userId: string) {
-    await this.assertOwnedReport(reportId, userId);
+  async listVersions(publicId: string, userId: string) {
+    const { id: reportId } = await this.assertOwnedReport(publicId, userId);
     return this.versions.listVersions(reportId);
   }
 
-  async findVersion(reportId: string, userId: string, versionNumber: number) {
-    await this.assertOwnedReport(reportId, userId);
+  async findVersion(publicId: string, userId: string, versionNumber: number) {
+    const { id: reportId } = await this.assertOwnedReport(publicId, userId);
     return this.versions.findVersionByNumber(reportId, versionNumber);
   }
 
@@ -362,17 +386,19 @@ export class ReportsService {
 
   toListItem(row: {
     id: string;
+    publicId: string;
     weekStart: Date;
     status: string;
     updatedAt: Date;
     project: { id: string; name: string; code: string; color: string };
-    user?: { id: string; name: string; email: string };
+    user?: { id: string; publicId: string; name: string; email: string };
     currentVersion: { tasks: { hoursSpent: unknown }[] } | null;
     _count: { versions: number };
   }) {
     const tasks = row.currentVersion?.tasks ?? [];
     return {
       id: row.id,
+      publicId: row.publicId,
       weekStart: row.weekStart.toISOString().slice(0, 10),
       status: row.status,
       project: row.project,

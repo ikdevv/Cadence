@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
-import { formatWeek, type ReportVersionContent, type VersionSummary } from "@cadence/shared"
+import { formatWeek, type VersionSummary } from "@cadence/shared"
 import { ReportView } from "@/components/report/report-view"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-import { apiClient } from "@/lib/api-client"
+import { getReportVersion } from "@/lib/api/reports"
+import { getTeamReportVersion } from "@/lib/api/team"
 import { queryKeys } from "@/lib/query-keys"
 import { cn } from "@/lib/utils"
 
@@ -130,9 +131,9 @@ function VersionContent({
       ? queryKeys.team.version(reportId, versionNumber)
       : queryKeys.reports.version(reportId, versionNumber),
     queryFn: () =>
-      apiClient.get<ReportVersionContent>(
-        `${basePath}/${reportId}/versions/${versionNumber}`,
-      ),
+      isTeam
+        ? getTeamReportVersion(reportId, versionNumber)
+        : getReportVersion(reportId, versionNumber),
   })
 
   if (isLoading) {

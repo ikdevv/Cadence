@@ -23,21 +23,28 @@ export class ProjectsController {
     return this.projectsService.list(includeInactive === 'true');
   }
 
-  @Roles('MANAGER', 'ADMIN')
+  @Roles('ADMIN')
   @Post()
   create(@Body() dto: CreateProjectDto) {
     return this.projectsService.create(dto);
   }
 
-  @Roles('MANAGER', 'ADMIN')
+  @Roles('ADMIN')
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateProjectDto) {
     return this.projectsService.update(id, dto);
   }
 
-  @Roles('MANAGER', 'ADMIN')
+  @Roles('ADMIN')
   @Delete(':id')
   deactivate(@Param('id') id: string) {
     return this.projectsService.deactivate(id);
+  }
+
+  /** Irreversible; deletes every report filed against the project along with it. */
+  @Roles('ADMIN')
+  @Delete(':id/permanent')
+  permanentlyDelete(@Param('id') id: string) {
+    return this.projectsService.permanentlyDelete(id);
   }
 }

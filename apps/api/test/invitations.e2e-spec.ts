@@ -5,6 +5,7 @@ import { hash } from 'bcryptjs';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module.js';
+import { generatePublicId } from '../src/common/utils/public-id.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 
 describe('Invitations (e2e)', () => {
@@ -37,6 +38,7 @@ describe('Invitations (e2e)', () => {
         name: 'E2E Admin',
         role: 'ADMIN',
         passwordHash: await hash('adminpass123', 12),
+        publicId: generatePublicId('usr'),
       },
     });
     adminId = admin.id;
@@ -54,6 +56,7 @@ describe('Invitations (e2e)', () => {
         name: 'E2E Member',
         role: 'MEMBER',
         passwordHash: await hash('memberpass123', 12),
+        publicId: generatePublicId('usr'),
       },
     });
     const memberLogin = await request(app.getHttpServer())

@@ -1,27 +1,20 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { compare, hash } from 'bcryptjs';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { hash } from 'bcryptjs';
 import { paginate } from '../../common/dto/pagination.dto.js';
 import { decimalToNumber } from '../../common/utils/decimal.js';
+import { generatePublicId } from '../../common/utils/public-id.js';
 import { isWeekOver } from '../../common/utils/week.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { Role } from '../../generated/prisma/enums.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import type {
-  ChangePasswordDto,
-  CreateUserDto,
-  ListUsersDto,
-} from './dto/user.dto.js';
+import type { CreateUserDto, ListUsersDto } from './dto/user.dto.js';
 
 const PASSWORD_SALT_ROUNDS = 12;
 
 /** passwordHash never leaves this service — every read goes through the allowlist. */
 const userSelect = {
   id: true,
+  publicId: true,
   name: true,
   email: true,
   role: true,
@@ -47,7 +40,9 @@ export class UsersService {
     name: string;
     role?: Role;
   }) {
-    return this.prisma.user.create({ data });
+    return this.prisma.user.create({
+      data: { ...data, publicId: generatePublicId('usr') },
+    });
   }
 
   listActiveMembers() {
@@ -99,6 +94,7 @@ export class UsersService {
         name: dto.name,
         role: dto.role,
         passwordHash,
+        publicId: generatePublicId('usr'),
       },
       select: userSelect,
     });
@@ -144,40 +140,10 @@ export class UsersService {
     });
   }
 
-  async updateProfile(id: string, name: string) {
-    return this.prisma.user.update({
-      where: { id },
-      data: { name },
-      select: userSelect,
-    });
-  }
-
-  /** Changing a password revokes every other session for that user. */
-  async changePassword(id: string, dto: ChangePasswordDto) {
-    const user = await this.findById(id);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-    const valid = await compare(dto.currentPassword, user.passwordHash);
-    if (!valid) {
-      throw new UnauthorizedException('Current password is incorrect');
-    }
-
-    const passwordHash = await hash(dto.newPassword, PASSWORD_SALT_ROUNDS);
-    await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id }, data: { passwordHash } }),
-      this.prisma.refreshToken.updateMany({
-        where: { userId: id, revokedAt: null },
-        data: { revokedAt: new Date() },
-      }),
-    ]);
-    return { ok: true };
-  }
-
   /** Manager-facing profile: who they are, how they are doing, recent reports. */
-  async profile(id: string) {
+  async profile(publicId: string) {
     const user = await this.prisma.user.findUnique({
-      where: { id },
+      where: { publicId },
       select: userSelect,
     });
     if (!user) {
@@ -185,7 +151,7 @@ export class UsersService {
     }
 
     const reports = await this.prisma.report.findMany({
-      where: { userId: id },
+      where: { userId: user.id },
       orderBy: { weekStart: 'desc' },
       include: {
         project: { select: { id: true, name: true, code: true, color: true } },
@@ -195,7 +161,7 @@ export class UsersService {
     });
 
     const corrected = await this.prisma.reviewAction.findMany({
-      where: { action: 'REQUEST_CHANGES', report: { userId: id } },
+      where: { action: 'REQUEST_CHANGES', report: { userId: user.id } },
       select: { reportId: true },
       distinct: ['reportId'],
     });
@@ -251,6 +217,7 @@ export class UsersService {
       },
       recentReports: submittedReports.slice(0, 10).map((report) => ({
         id: report.id,
+        publicId: report.publicId,
         weekStart: report.weekStart.toISOString().slice(0, 10),
         status: report.status,
         project: report.project,

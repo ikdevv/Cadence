@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { apiClient } from "@/lib/api-client"
+import { listUsers } from "@/lib/api/users"
 import { queryKeys } from "@/lib/query-keys"
 
 interface ActiveUser {
@@ -25,8 +25,7 @@ interface ActiveUser {
 export function ActiveUsersTable() {
   const { data: page, isLoading, isError } = useQuery({
     queryKey: queryKeys.users.active(),
-    queryFn: () =>
-      apiClient.get<{ data: ActiveUser[] }>("/users?pageSize=100"),
+    queryFn: () => listUsers<{ data: ActiveUser[] }>({ pageSize: 100 }),
   })
   const data = page?.data
 

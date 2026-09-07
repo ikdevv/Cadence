@@ -47,18 +47,3 @@ export class UpdateStatusDto {
   isActive: boolean;
 }
 
-export class UpdateProfileDto {
-  @IsString()
-  @Length(1, 120)
-  name: string;
-}
-
-export class ChangePasswordDto {
-  @IsString()
-  @Length(1, 128)
-  currentPassword: string;
-
-  @IsString()
-  @Length(8, 128)
-  newPassword: string;
-}

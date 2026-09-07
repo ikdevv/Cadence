@@ -3,14 +3,14 @@
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { EDITABLE_STATUSES, formatWeek, type ReportDetail } from "@cadence/shared"
+import { EDITABLE_STATUSES, formatWeekRange } from "@cadence/shared"
 import { ReportView } from "@/components/report/report-view"
 import { ReviewCommentBanner } from "@/components/report/review-comment-banner"
 import { VersionDrawer } from "@/components/report/version-drawer"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { apiClient } from "@/lib/api-client"
+import { getReport } from "@/lib/api/reports"
 import { queryKeys } from "@/lib/query-keys"
 
 export default function ReportDetailPage() {
@@ -18,7 +18,7 @@ export default function ReportDetailPage() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.reports.detail(id),
-    queryFn: () => apiClient.get<ReportDetail>(`/reports/${id}`),
+    queryFn: () => getReport(id),
   })
 
   if (isLoading) return <Skeleton className="h-96 w-full" />
@@ -34,7 +34,7 @@ export default function ReportDetailPage() {
         <div>
           <div className="mb-1 flex items-center gap-2">
             <h1 className="text-2xl font-semibold">
-              Week of {formatWeek(data.weekStart)}
+              {formatWeekRange(data.weekStart)}
             </h1>
             <StatusBadge status={data.status} withIcon />
           </div>
@@ -46,14 +46,14 @@ export default function ReportDetailPage() {
         <div className="flex gap-2">
           {data.versionCount > 1 && (
             <VersionDrawer
-              reportId={data.id}
+              reportId={data.publicId}
               versions={data.versions}
               currentVersionNumber={data.currentVersion?.versionNumber}
             />
           )}
           {editable && (
             <Button asChild>
-              <Link href={`/reports/${data.id}/edit`}>Edit</Link>
+              <Link href={`/reports/${data.publicId}/edit`}>Edit</Link>
             </Button>
           )}
         </div>

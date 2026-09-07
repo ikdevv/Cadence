@@ -7,7 +7,6 @@ import { useForm } from "react-hook-form"
 import {
   CreateInvitationSchema,
   type CreateInvitationInput,
-  type Invitation,
   type Role,
 } from "@cadence/shared"
 import { Button } from "@/components/ui/button"
@@ -28,7 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { apiClient, ApiError } from "@/lib/api-client"
+import { ApiError } from "@/lib/api/client"
+import { createInvitation } from "@/lib/api/invitations"
 
 const ROLES: Role[] = ["MEMBER", "MANAGER", "ADMIN"]
 
@@ -50,8 +50,7 @@ export function InviteUserDialog() {
   })
 
   const mutation = useMutation({
-    mutationFn: (data: CreateInvitationInput) =>
-      apiClient.post<Invitation>("/invitations", data),
+    mutationFn: (data: CreateInvitationInput) => createInvitation(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invitations"] })
       reset({ email: "", role: "MEMBER" })

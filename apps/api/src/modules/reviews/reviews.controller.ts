@@ -10,32 +10,34 @@ import { ReviewsService } from './reviews.service.js';
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
+  /** `:reportId` is the report's public identifier throughout this controller. */
   @HttpCode(HttpStatus.OK)
   @Post(':reportId/approve')
   approve(
-    @Param('reportId') reportId: string,
+    @Param('reportId') publicId: string,
     @CurrentUser() reviewer: AuthenticatedUser,
     @Body() dto: ApproveDto,
   ) {
-    return this.reviewsService.approve(reportId, reviewer.id, dto.comment);
+    return this.reviewsService.approve(publicId, reviewer.id, dto.comment);
   }
 
   @HttpCode(HttpStatus.OK)
   @Post(':reportId/request-changes')
   requestChanges(
-    @Param('reportId') reportId: string,
+    @Param('reportId') publicId: string,
     @CurrentUser() reviewer: AuthenticatedUser,
     @Body() dto: RequestChangesDto,
   ) {
     return this.reviewsService.requestChanges(
-      reportId,
+      publicId,
       reviewer.id,
       dto.comment,
     );
   }
 
   @Get(':reportId/history')
-  history(@Param('reportId') reportId: string) {
+  async history(@Param('reportId') publicId: string) {
+    const reportId = await this.reviewsService.resolveIdByPublicId(publicId);
     return this.reviewsService.history(reportId);
   }
 }

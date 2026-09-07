@@ -43,6 +43,32 @@ export class ProjectsService {
     });
   }
 
+  /**
+   * Admin-only, irreversible: every report filed against this project — and
+   * everything under those reports (versions, tasks, blockers, achievements,
+   * hours, review history) — is deleted along with it. The frontend is
+   * expected to make that unambiguous before calling this.
+   *
+   * Report.projectId is ON DELETE RESTRICT, so reports must go first. Each
+   * report's currentVersionId is nulled before deletion, same as
+   * ReportsService.remove — Postgres cascades the rest (versions, their
+   * children, review actions) once the report row itself is gone.
+   */
+  async permanentlyDelete(id: string) {
+    const project = await this.assertExists(id);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.report.updateMany({
+        where: { projectId: id },
+        data: { currentVersionId: null },
+      });
+      await tx.report.deleteMany({ where: { projectId: id } });
+      await tx.project.delete({ where: { id } });
+    });
+
+    return { id: project.id, name: project.name };
+  }
+
   async assertExists(id: string) {
     const project = await this.prisma.project.findUnique({ where: { id } });
     if (!project) {

@@ -1,12 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import {
-  formatWeek,
-  recentWeeks,
-  REPORT_STATUSES,
-  type Project,
-} from "@cadence/shared"
+import { REPORT_STATUSES, toWeekStartString } from "@cadence/shared"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -15,13 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { apiClient } from "@/lib/api-client"
-import { useFilterParams } from "@/lib/hooks/use-filter-params"
+import { WeekPicker } from "@/components/ui/week-picker"
+import { listProjects } from "@/lib/api/projects"
+import { useDashboardFilters } from "@/lib/hooks/use-dashboard-filters"
 import { queryKeys } from "@/lib/query-keys"
 import { statusConfig } from "@/lib/status-config"
 
 const ALL = "ALL"
-const WEEK_CHOICES = 8
 
 export interface TeamMemberOption {
   id: string
@@ -30,21 +25,15 @@ export interface TeamMemberOption {
 
 export function FilterBar({
   members = [],
-  showStatus = true,
 }: {
   members?: TeamMemberOption[]
-  showStatus?: boolean
 }) {
-  const { get, set } = useFilterParams()
+  const { get, set } = useDashboardFilters()
 
   const { data: projects } = useQuery({
     queryKey: queryKeys.projects.list(true),
-    queryFn: () => apiClient.get<Project[]>("/projects?includeInactive=true"),
+    queryFn: () => listProjects(true),
   })
-
-  const weeks = recentWeeks(WEEK_CHOICES)
-    .map((week) => week.toISOString().slice(0, 10))
-    .reverse()
 
   const hasFilters = ["week", "userId", "projectId", "status"].some((key) =>
     get(key),
@@ -52,22 +41,15 @@ export function FilterBar({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Select
-        value={get("week") ?? ALL}
-        onValueChange={(value) => set({ week: value, page: undefined })}
-      >
-        <SelectTrigger className="w-48">
-          <SelectValue placeholder="Week" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL}>All weeks</SelectItem>
-          {weeks.map((week) => (
-            <SelectItem key={week} value={week}>
-              Week of {formatWeek(week)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <WeekPicker
+        value={get("week") ?? null}
+        onChange={(week) =>
+          set({ week: toWeekStartString(week), page: undefined })
+        }
+        onClear={() => set({ week: undefined, page: undefined })}
+        placeholder="All weeks"
+        className="w-56"
+      />
 
       {members.length > 0 && (
         <Select
@@ -105,26 +87,24 @@ export function FilterBar({
         </SelectContent>
       </Select>
 
-      {showStatus && (
-        <Select
-          value={get("status") ?? ALL}
-          onValueChange={(value) => set({ status: value, page: undefined })}
-        >
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All statuses</SelectItem>
-            {REPORT_STATUSES.filter((status) => status !== "DRAFT").map(
-              (status) => (
-                <SelectItem key={status} value={status}>
-                  {statusConfig[status].label}
-                </SelectItem>
-              ),
-            )}
-          </SelectContent>
-        </Select>
-      )}
+      <Select
+        value={get("status") ?? ALL}
+        onValueChange={(value) => set({ status: value, page: undefined })}
+      >
+        <SelectTrigger className="w-48">
+          <SelectValue placeholder="Status" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>All statuses</SelectItem>
+          {REPORT_STATUSES.filter((status) => status !== "DRAFT").map(
+            (status) => (
+              <SelectItem key={status} value={status}>
+                {statusConfig[status].label}
+              </SelectItem>
+            ),
+          )}
+        </SelectContent>
+      </Select>
 
       {hasFilters && (
         <Button

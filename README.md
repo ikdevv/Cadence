@@ -6,13 +6,6 @@ blockers, achievements, a breakdown of where the time went, and a plan for next
 week. Managers review those reports, approve them or send them back with a
 comment, and read a dashboard over the whole team.
 
-The part worth looking at is the correction cycle. A report is a container; its
-content lives on immutable versions. Submitting freezes the version being
-edited; requesting changes records the comment **against the version that was
-reviewed** and clones it into a fresh editable copy, so the member reopens a
-pre-filled form while every earlier version stays readable exactly as it was
-reviewed.
-
 ---
 
 ## Tech stack
@@ -34,7 +27,7 @@ reviewed.
 
 - Node.js 20+ (developed on 24)
 - pnpm 11+
-- Docker (for PostgreSQL)
+- Docker (for PostgreSQL and )
 
 ---
 
@@ -56,6 +49,8 @@ cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env.local
 ```
 
+Huggingface env variables are provided in 'hugface-env.rtf' file in shared google drive file
+
 | Variable | App | Notes |
 | --- | --- | --- |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | compose | Credentials for the local Postgres container |
@@ -67,18 +62,27 @@ cp apps/web/.env.example apps/web/.env.local
 | `REFRESH_TOKEN_TTL` | api | Default `7d` |
 | `CORS_ORIGIN` | api | The web origin, with credentials enabled |
 | `INVITATION_TTL_HOURS` | api | How long an invitation link stays valid (default 48) |
+| `SMTP_HOST` / `SMTP_PORT` | api | Defaults to Mailpit (`localhost:1025`) |
+| `SMTP_FROM` | api | From header for outgoing mail |
+| `SMTP_SECURE` / `SMTP_USER` / `SMTP_PASS` | api | Only needed for a real SMTP provider — Mailpit takes neither TLS nor auth |
+| `HUGGINGFACE_API_KEY` | api | Server-side only — powers the AI Report Assistant. Needs the "Make calls to Inference Providers" token permission. Leave blank to disable it (returns a friendly 503) |
+| `HUGGINGFACE_MODEL` | api | Hugging Face model id, e.g. `Qwen/Qwen3-Next-80B-A3B-Instruct`. Must be served by a provider enabled on your account |
 | `NEXT_PUBLIC_API_URL` | web | Where the browser reaches the API |
 
-### 3. Running the database
+### 3. Running the database and mail catcher
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres mailpit
 ```
+
+Mailpit catches every email the API sends locally — invitations included.
+View them at [http://localhost:8025](http://localhost:8025); nothing leaves
+the machine.
 
 ### 4. Running migrations and seeding
 
 ```bash
-pnpm --filter cadence-api exec prisma migrate deploy
+pnpm --filter cadence-api exec prisma migrate dev
 pnpm db:seed
 ```
 
@@ -100,7 +104,7 @@ Or both at once with `pnpm dev`.
 
 ### Demo accounts
 
-Every account uses the password `Demo@1234`.
+Every account uses the password `Passsword123`.
 
 | Email | Role | What they see |
 | --- | --- | --- |
@@ -162,8 +166,7 @@ cadence/
 | `/team/sections` | MANAGER, ADMIN | One section across the whole team for a week |
 | `/analytics` | MANAGER, ADMIN | Four charts and the activity feed |
 | `/projects` | MANAGER, ADMIN | Project CRUD |
-| `/admin/users` | ADMIN | Users and invitations |
-| `/settings` | any | Name and password |
+| `/admin/users` | ADMIN | User management and invitations |
 
 ## API overview
 
@@ -182,73 +185,8 @@ cadence/
 | GET | `/team/reports`, `/team/reports/:id`, `/team/reports/:id/versions/:n`, `/team/status-matrix`, `/team/sections` | MANAGER, ADMIN |
 | POST/GET | `/reviews/:reportId/approve`, `/reviews/:reportId/request-changes`, `/reviews/:reportId/history` | MANAGER, ADMIN |
 | GET | `/analytics/summary`, `/trends`, `/status-by-member`, `/by-project`, `/time-by-type`, `/activity` | MANAGER, ADMIN |
+| POST | `/assistant/report-chat` | MANAGER, ADMIN |
 
 List endpoints return `{ data, page, pageSize, total }`; single resources return
 the object directly.
 
----
-
-## Database
-
-The full schema is in `apps/api/prisma/*.prisma`, and the entity relationship
-diagram — with the two relationships that carry the design annotated — is in
-[`docs/erd.md`](docs/erd.md).
-
-## Architecture notes
-
-**Report versioning.** A `Report` row holds identity and status and never holds
-content. Content lives on `ReportVersion` rows with normalized children
-(`Task`, `Blocker`, `Achievement`, `HoursEntry`). Exactly one rule governs every
-content write: content can only be written to the version whose `submittedAt` is
-null. That single check makes a report editable in `DRAFT` and
-`NEEDS_CORRECTION` and locked in `SUBMITTED` and `APPROVED` without a status
-switch anywhere in the codebase. Submitting freezes the editable version rather
-than creating one — new versions come only from `requestChanges`, which in one
-transaction writes the `ReviewAction` against the reviewed version and clones
-that version into a fresh editable copy. `Report.currentVersionId` is
-denormalized on purpose and updated inside the same transaction as every status
-change, so analytics can join straight through it instead of hunting for "the
-latest submitted version" with a correlated subquery.
-
-**Access control.** Two rules, both structural rather than conditional. First,
-for any member-scoped resource the `userId` comes from the JWT and is filtered in
-the `where` clause — never accepted from a param, query or body — and a miss
-returns 404 rather than 403, so a member cannot probe which report IDs exist.
-Second, content routes and review routes are separate route families with
-separate guards: `/reports/*` is `MEMBER`-only, `/reviews/*` and `/team/*` are
-`MANAGER`/`ADMIN`-only, and the reviews service has no access to the content
-models at all. There is no code path from a manager's request to a task write.
-Route-group guards in the web app are navigation UX only; the API is the
-enforcement point.
-
-**Derived states.** "Not yet started" is not a stored status — it is the absence
-of a report row for a (member, week) pair, computed by left-joining active
-members against the selected week. Likewise `EXPIRED` on an invitation is
-derived at read time. Neither needs a background job creating placeholder rows.
-
-**Analytics.** Every aggregate reads through `Report.currentVersionId`. Counting
-across all versions would double-count every report that went through a
-correction cycle.
-
----
-
-## What is not implemented, and why
-
-- **AI chat assistant.** Listed as optional in the brief. Left out rather than
-  half-built. The design it would follow: tool use over the existing guarded
-  service methods — four read-only tools (team reports, blockers, workload
-  summary, submission status), no database access for the model, a hop cap on
-  the tool loop, and manager-only access, so the model can never reach data the
-  caller could not already open in the UI. Not RAG: the reports are structured
-  relational data, and a `WHERE` clause answers these questions exactly where
-  semantic search would approximate.
-- **Member-to-project assignment.** Optional in the brief, and it adds a join
-  table plus management UI without touching any evaluation criterion.
-- **Version diff view.** The brief asks for a list of versions viewable on
-  demand, which is what the version drawer does.
-- **Email delivery.** The invitation flow is complete end to end, but the email
-  service logs the message instead of sending it; wiring a provider is a
-  configuration change, not a code change.
-- **Refresh token in an httpOnly cookie.** Tokens are held in the client and
-  refreshed through `/auth/refresh` with rotation and reuse revocation. A cookie
-  would be the choice for a production deployment on a shared parent domain.

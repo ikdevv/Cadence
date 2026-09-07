@@ -5,7 +5,7 @@ import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { RegisterSchema, type AuthSession } from "@cadence/shared"
+import { RegisterSchema } from "@cadence/shared"
 import {
   Card,
   CardContent,
@@ -16,7 +16,8 @@ import {
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { apiClient, ApiError } from "@/lib/api-client"
+import { register as registerRequest } from "@/lib/api/auth"
+import { ApiError } from "@/lib/api/client"
 import { useAuthStore } from "@/lib/stores/auth-store"
 
 const SignupFormSchema = RegisterSchema.extend({
@@ -40,7 +41,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null)
     try {
-      const session = await apiClient.post<AuthSession>("/auth/register", {
+      const session = await registerRequest({
         name: values.name,
         email: values.email,
         password: values.password,

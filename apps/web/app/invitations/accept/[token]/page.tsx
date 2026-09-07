@@ -2,10 +2,9 @@
 
 import { useParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import type { ValidateInvitationResult } from "@cadence/shared"
 import { AcceptInvitationForm } from "@/components/accept-invitation-form"
 import { InvitationStatusMessage } from "@/components/invitation-status-message"
-import { apiClient } from "@/lib/api-client"
+import { validateInvitation } from "@/lib/api/invitations"
 import { queryKeys } from "@/lib/query-keys"
 
 export default function AcceptInvitationPage() {
@@ -14,10 +13,7 @@ export default function AcceptInvitationPage() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.invitations.validate(token),
-    queryFn: () =>
-      apiClient.get<ValidateInvitationResult>(
-        `/invitations/validate/${encodeURIComponent(token)}`,
-      ),
+    queryFn: () => validateInvitation(token),
   })
 
   return (

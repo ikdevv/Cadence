@@ -21,7 +21,8 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { apiClient, ApiError } from "@/lib/api-client"
+import { ApiError } from "@/lib/api/client"
+import { createProject, updateProject } from "@/lib/api/projects"
 
 /** Create and edit share one dialog — the fields are identical. */
 export function ProjectDialog({
@@ -46,9 +47,7 @@ export function ProjectDialog({
 
   const save = useMutation({
     mutationFn: (values: CreateProjectInput) =>
-      project
-        ? apiClient.patch(`/projects/${project.id}`, values)
-        : apiClient.post("/projects", values),
+      project ? updateProject(project.id, values) : createProject(values),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] })
       setOpen(false)
