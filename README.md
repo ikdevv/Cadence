@@ -6,13 +6,6 @@ blockers, achievements, a breakdown of where the time went, and a plan for next
 week. Managers review those reports, approve them or send them back with a
 comment, and read a dashboard over the whole team.
 
-The part worth looking at is the correction cycle. A report is a container; its
-content lives on immutable versions. Submitting freezes the version being
-edited; requesting changes records the comment **against the version that was
-reviewed** and clones it into a fresh editable copy, so the member reopens a
-pre-filled form while every earlier version stays readable exactly as it was
-reviewed.
-
 ---
 
 ## Tech stack
@@ -34,7 +27,7 @@ reviewed.
 
 - Node.js 20+ (developed on 24)
 - pnpm 11+
-- Docker (for PostgreSQL)
+- Docker (for PostgreSQL and )
 
 ---
 
@@ -55,6 +48,8 @@ cp .env.example .env                 # docker compose + database
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env.local
 ```
+
+Huggingface env variables are provided in 'hugface-env.rtf' file in shared google drive file
 
 | Variable | App | Notes |
 | --- | --- | --- |
@@ -87,7 +82,7 @@ the machine.
 ### 4. Running migrations and seeding
 
 ```bash
-pnpm --filter cadence-api exec prisma migrate deploy
+pnpm --filter cadence-api exec prisma migrate dev
 pnpm db:seed
 ```
 
